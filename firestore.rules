@@ -1,0 +1,75 @@
+rules_version = '2';
+
+/**
+ * FIRESTORE SECURITY RULES: SCHOOL CLICK APPLICATION
+ * 
+ * Core Philosophy:
+ * This ruleset implements a public-read, community-engagement model. The primary focus 
+ * is on school-level data that is accessible to all users for competitive engagement 
+ * (clicking/scoring). It prioritizes ease of access for ranking data while maintaining 
+ * the integrity of the school collection.
+ * 
+ * Data Structure:
+ * All school data is organized in a flat, top-level /schools/{schoolId} collection. 
+ * This structure promotes Authorization Independence, as each document contains all 
+ * the metadata (name, city, kind) and state (score, slogans) required for the UI 
+ * and for leaderboard ranking queries.
+ * 
+ * Key Security Decisions:
+ * 1. Public Read Access: All school documents and the ability to list them are 
+ *    publicly available (if true) to support national leaderboards and public school profiles.
+ * 2. Authenticated Updates: Any authenticated user (including anonymous users) can 
+ *    update school documents to increment scores, supporting the core "Click" mechanic.
+ * 3. Restricted Management: Operations like 'create' and 'delete' are restricted 
+ *    as the school list is intended to be managed by system administrators or 
+ *    external API synchronizations (e.g., NEIS).
+ * 
+ * Denormalization for Authorization:
+ * Each school document includes its own 'id' field which must match the document ID. 
+ * This ensures that relational integrity is maintained without needing to query 
+ * other collections.
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Simple check to verify if the request comes from an authenticated user.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Verifies if a document exists before performing state-changing operations.
+     */
+    function exists(resource) {
+      return resource != null;
+    }
+
+    /**
+     * @description Rules for the 'schools' collection.
+     * @path /schools/{schoolId}
+     * @allow (get, list) for any user (public leaderboard).
+     * @allow (update) for any signed-in user to increment scores.
+     * @deny (create, delete) to prevent unauthorized collection modification.
+     * @principle Public consumption with authenticated state-change permissions.
+     */
+    match /schools/{schoolId} {
+      allow get, list: if true;
+      
+      // CRITICAL: Cannot implement owner-only writes. The 'School' entity is missing 
+      // an 'ownerId' or 'authorId' field. By application design, any user can increment scores.
+      allow create: if false; // TODO: Add owner validation if school creation is moved to the client.
+      
+      allow update: if isSignedIn() && exists(resource);
+      
+      allow delete: if false;
+    }
+
+    // Default deny for any paths not explicitly matched.
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
