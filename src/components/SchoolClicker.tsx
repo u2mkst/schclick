@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { searchSchools, type School } from "@/lib/neis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Trophy, Users, Globe, Award, Loader2, MousePointer2 } from "lucide-react";
-import { SloganGenerator } from "./SloganGenerator";
+import { Search, Trophy, Globe, Loader2, MousePointer2, MapPin, Phone, Link as LinkIcon, Calendar } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -28,29 +27,14 @@ export function SchoolClicker() {
   const [isSearching, setIsSearching] = useState(false);
   const [open, setOpen] = useState(false);
   
-  // Real-time scores and rankings state
   const [myScore, setMyScore] = useState(0);
-  const [rankings, setRankings] = useState<SchoolRankData[]>([
+  const [rankings] = useState<SchoolRankData[]>([
     { name: "서울고등학교", score: 12504 },
     { name: "경기고등학교", score: 10832 },
     { name: "부산고등학교", score: 9421 },
     { name: "대구고등학교", score: 8765 },
     { name: "광주고등학교", score: 7210 },
-    { name: "인천고등학교", score: 6543 },
-    { name: "대전고등학교", score: 5432 },
-    { name: "울산고등학교", score: 4321 },
-    { name: "세종고등학교", score: 3210 },
-    { name: "제주고등학교", score: 2100 },
   ]);
-
-  // Load random stats for selected school
-  const stats = useMemo(() => {
-    if (!selectedSchool) return null;
-    return {
-      students: Math.floor(Math.random() * 800) + 200,
-      online: Math.floor(Math.random() * 50) + 1,
-    };
-  }, [selectedSchool]);
 
   const totalGlobalClicks = useMemo(() => {
     return rankings.reduce((acc, curr) => acc + curr.score, 0) + (selectedSchool ? myScore : 0);
@@ -95,13 +79,18 @@ export function SchoolClicker() {
     setMyScore(prev => prev + 1);
   };
 
+  const formatDate = (dateStr: string) => {
+    if (!dateStr || dateStr.length !== 8) return "-";
+    return `${dateStr.substring(0, 4)}년 ${dateStr.substring(4, 6)}월 ${dateStr.substring(6, 8)}일`;
+  };
+
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6 pb-20">
       <div className="text-center space-y-2 py-8">
         <h1 className="text-5xl font-extrabold tracking-tighter text-white">
           🏫 SCHOOL CLICK
         </h1>
-        <p className="text-muted-foreground text-lg">우리 학교를 전국 1위로 만드세요!</p>
+        <p className="text-muted-foreground text-lg">실제 학교 정보를 확인하고 클릭 경쟁에 참여하세요!</p>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
@@ -152,7 +141,7 @@ export function SchoolClicker() {
       <Card className="glass-card border-none shadow-2xl overflow-hidden">
         <CardHeader className="border-b border-white/5">
           <CardTitle className="flex items-center gap-2 text-2xl font-bold">
-            <Trophy className="text-yellow-500" /> 전국 학교 랭킹 TOP 10
+            <Trophy className="text-yellow-500" /> 학교 랭킹 (데모)
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -203,34 +192,46 @@ export function SchoolClicker() {
             </div>
           </button>
 
-          {selectedSchool && <SloganGenerator schoolName={selectedSchool.SCHUL_NM} />}
-
-          <div className="grid grid-cols-2 gap-4 mt-8">
-            <div className="bg-white/5 rounded-2xl p-5 text-center space-y-1">
-              <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm font-semibold">
-                <Users className="h-4 w-4" /> 학생 수
+          {selectedSchool && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+              <div className="bg-white/5 rounded-2xl p-5 space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm font-semibold">
+                  <MapPin className="h-4 w-4" /> 주소
+                </div>
+                <div className="text-sm font-medium">{selectedSchool.ORG_RDNMA || "정보 없음"}</div>
               </div>
-              <div className="text-2xl font-bold">{stats?.students || "-"}</div>
-            </div>
-            <div className="bg-white/5 rounded-2xl p-5 text-center space-y-1">
-              <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm font-semibold">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> 동접자
+              <div className="bg-white/5 rounded-2xl p-5 space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm font-semibold">
+                  <Phone className="h-4 w-4" /> 전화번호
+                </div>
+                <div className="text-sm font-medium">{selectedSchool.ORG_TELNO || "정보 없음"}</div>
               </div>
-              <div className="text-2xl font-bold">{stats?.online || "-"}</div>
-            </div>
-            <div className="bg-white/5 rounded-2xl p-5 text-center space-y-1">
-              <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm font-semibold">
-                <Globe className="h-4 w-4" /> 총 클릭 수
+              <div className="bg-white/5 rounded-2xl p-5 space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm font-semibold">
+                  <LinkIcon className="h-4 w-4" /> 홈페이지
+                </div>
+                <div className="text-sm font-medium truncate">
+                  {selectedSchool.HMPG_ADRES ? (
+                    <a href={selectedSchool.HMPG_ADRES.startsWith('http') ? selectedSchool.HMPG_ADRES : `http://${selectedSchool.HMPG_ADRES}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                      {selectedSchool.HMPG_ADRES}
+                    </a>
+                  ) : "정보 없음"}
+                </div>
               </div>
-              <div className="text-2xl font-bold text-cyan truncate px-2">{totalGlobalClicks.toLocaleString()}</div>
-            </div>
-            <div className="bg-white/5 rounded-2xl p-5 text-center space-y-1">
-              <div className="flex items-center justify-center gap-2 text-muted-foreground text-sm font-semibold">
-                <Award className="h-4 w-4 text-yellow-500" /> 최고 순위
+              <div className="bg-white/5 rounded-2xl p-5 space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm font-semibold">
+                  <Calendar className="h-4 w-4" /> 설립일
+                </div>
+                <div className="text-sm font-medium">{formatDate(selectedSchool.FOND_YMD)}</div>
               </div>
-              <div className="text-2xl font-bold">{selectedSchool ? `${myRank}위` : "-"}</div>
+              <div className="col-span-full bg-white/5 rounded-2xl p-5 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-muted-foreground text-sm font-semibold">
+                  <Globe className="h-4 w-4" /> 전역 총 클릭 합계
+                </div>
+                <div className="text-xl font-bold text-cyan">{totalGlobalClicks.toLocaleString()}</div>
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>
