@@ -228,7 +228,7 @@ export function SchoolClicker() {
   const handleButtonClick = () => {
     if (!selectedSchool || !db || isCoolingDown) return;
 
-    // 비정상 클릭 속도 감지 (1초 내 15회 이상 클릭 시 차단)
+    // 비정상 클릭 속도 감지
     const now = Date.now();
     if (now - lastClickTimeRef.current < 1000) {
       clickCountInSecondRef.current += 1;
@@ -280,7 +280,7 @@ export function SchoolClicker() {
       });
     };
 
-    // reCAPTCHA 실행
+    // reCAPTCHA v3
     if (window.grecaptcha && window.grecaptcha.ready) {
       window.grecaptcha.ready(() => {
         window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
@@ -300,7 +300,6 @@ export function SchoolClicker() {
 
   const handleKakaoShare = () => {
     if (!window.Kakao || !window.Kakao.isInitialized()) {
-      // 재초기화 시도
       try {
         window.Kakao.init(KAKAO_KEY);
       } catch(e) {
@@ -399,7 +398,7 @@ export function SchoolClicker() {
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <GraduationCap className="h-5 w-5 text-primary" />
+            <GraduationCap className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold tracking-tight">SCHOOL CLICK</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -502,12 +501,11 @@ export function SchoolClicker() {
         </button>
       </footer>
 
-      {/* 학교 검색 모달 */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 pb-0">
             <DialogTitle className="flex items-center gap-2 text-primary">
-              <Search className="h-5 w-5" /> 학교 검색
+              <GraduationCap className="h-5 w-5" /> 학교 검색
             </DialogTitle>
           </DialogHeader>
           <div className="p-6 space-y-4">
@@ -555,14 +553,13 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
-      {/* 클릭 및 상세 정보 모달 */}
       <Dialog open={isClickModalOpen} onOpenChange={setIsClickModalOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-card">
           {selectedSchool && (
             <div className="flex flex-col max-h-[90vh] overflow-y-auto">
               <div className="p-8 pb-4 text-center space-y-2">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest">
-                  {currentRank ? <Trophy className="h-3 w-3" /> : <Loader2 className="h-3 w-3 animate-spin" />}
+                   <GraduationCap className="h-3 w-3" />
                   {currentRank ? `전국 실시간 ${currentRank}위` : '순위 진입 중...'}
                 </div>
                 <DialogTitle className="text-2xl font-black tracking-tighter leading-tight">
@@ -641,7 +638,6 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
-      {/* 관리자 로그인 모달 */}
       <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
         <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader>
@@ -679,7 +675,6 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
-      {/* 관리자 대시보드 모달 */}
       <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 bg-primary/10 flex flex-row items-center justify-between">

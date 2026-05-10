@@ -5,7 +5,7 @@ import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
-  title: 'SCHOOL CLICK - 우리 학교를 1위로!',
+  title: 'SCHOOL CLICK',
   description: '전국 학교 대항 클릭 게임. 우리 학교의 명예를 위해 클릭하세요!',
 };
 
@@ -20,7 +20,7 @@ export default function RootLayout({
         {children}
         <FirebaseErrorListener />
         <Toaster />
-        {/* Kakao Maps SDK - 핵심 SDK는 먼저 로드 */}
+        {/* Kakao Maps SDK */}
         <Script
           src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=619a98fc6bc8426aa8804d86591c7a6c&libraries=services&autoload=false"
           strategy="beforeInteractive"
