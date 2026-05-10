@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -64,7 +63,6 @@ export function SchoolClicker() {
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Initialize Theme and Local Clicks
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     const themeIsDark = savedTheme === "dark";
@@ -80,20 +78,17 @@ export function SchoolClicker() {
       setMyTotalClicks(parseInt(savedClicks, 10));
     }
 
-    // Initialize Kakao SDK
     if (window.Kakao && !window.Kakao.isInitialized()) {
       window.Kakao.init('619a98fc6bc8426aa8804d86591c7a6c');
     }
   }, []);
 
-  // Anonymous Sign-in
   useEffect(() => {
     if (auth && !isUserLoading && !user) {
       signInAnonymously(auth).catch(() => {});
     }
   }, [auth, user, isUserLoading]);
 
-  // Kakao Map Rendering
   useEffect(() => {
     if (isClickModalOpen && selectedSchool && mapContainerRef.current) {
       const loadMap = () => {
@@ -107,7 +102,7 @@ export function SchoolClicker() {
                 level: 3
               };
               const map = new window.kakao.maps.Map(mapContainerRef.current, options);
-              const marker = new window.kakao.maps.Marker({
+              new window.kakao.maps.Marker({
                 map: map,
                 position: coords
               });
@@ -237,7 +232,6 @@ export function SchoolClicker() {
       });
     };
 
-    // reCAPTCHA v3 Execution
     if (window.grecaptcha) {
       window.grecaptcha.ready(() => {
         window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
@@ -380,21 +374,21 @@ export function SchoolClicker() {
           <Button 
             variant="outline" 
             onClick={() => setIsSearchOpen(true)}
-            className="w-full h-14 text-base font-semibold rounded-2xl border-2 hover:bg-secondary/50 justify-start px-6 shadow-sm transition-all active:scale-[0.98]"
+            className="w-full h-14 text-base font-bold rounded-2xl border-2 hover:bg-primary/5 hover:border-primary/30 justify-start px-6 shadow-sm transition-all active:scale-[0.98]"
           >
-            <Search className="mr-3 h-5 w-5 text-muted-foreground" /> 
+            <Search className="mr-3 h-5 w-5 text-primary" /> 
             우리 학교를 검색해보세요
           </Button>
         </section>
 
-        <Card className="border-none shadow-none bg-secondary/20 rounded-3xl overflow-hidden">
-          <CardHeader className="py-4 px-6">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
+        <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden border">
+          <CardHeader className="py-4 px-6 border-b bg-secondary/10">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
               <Trophy className="h-4 w-4 text-primary" /> 실시간 명예의 전당 (TOP 10)
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-border/20">
+            <div className="divide-y divide-border/30">
               {rankingsLoading ? (
                 <div className="flex justify-center p-12"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>
               ) : rankings.length > 0 ? (
@@ -402,12 +396,12 @@ export function SchoolClicker() {
                   <div 
                     key={school.id} 
                     onClick={() => selectSchoolFromRanking(school)}
-                    className="flex items-center justify-between p-4 px-6 hover:bg-secondary/40 transition-colors cursor-pointer group"
+                    className="flex items-center justify-between p-4 px-6 hover:bg-primary/5 transition-colors cursor-pointer group"
                   >
                     <div className="flex items-center gap-4">
                       <span className={cn(
                         "w-6 text-center text-sm font-black transition-transform group-hover:scale-110",
-                        idx === 0 ? "text-yellow-500 text-lg" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-amber-600" : "opacity-30"
+                        idx === 0 ? "text-yellow-500 text-lg" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-amber-600" : "text-muted-foreground/40"
                       )}>
                         {idx + 1}
                       </span>
@@ -436,14 +430,14 @@ export function SchoolClicker() {
         </Card>
 
         <section className="grid grid-cols-2 gap-4">
-          <Card className="bg-primary/5 border-none rounded-2xl p-4 flex items-center gap-3">
+          <Card className="bg-primary/5 border-primary/10 rounded-2xl p-4 flex items-center gap-3 border shadow-none">
             <div className="p-2 bg-primary/10 rounded-xl text-primary"><MousePointer2 className="h-5 w-5" /></div>
             <div>
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">나의 누적 클릭</div>
-              <div className="text-lg font-black tabular-nums">{myTotalClicks.toLocaleString()}</div>
+              <div className="text-[10px] font-bold text-primary/60 uppercase tracking-wider">나의 누적 클릭</div>
+              <div className="text-lg font-black tabular-nums text-primary">{myTotalClicks.toLocaleString()}</div>
             </div>
           </Card>
-          <Card className="bg-secondary/30 border-none rounded-2xl p-4 flex items-center gap-3">
+          <Card className="bg-secondary/30 border-secondary-foreground/10 rounded-2xl p-4 flex items-center gap-3 border shadow-none">
             <div className="p-2 bg-secondary/50 rounded-xl text-muted-foreground"><Globe className="h-5 w-5" /></div>
             <div>
               <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">전체 누적 점수</div>
@@ -463,10 +457,10 @@ export function SchoolClicker() {
       </footer>
 
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5 text-primary" /> 학교 검색
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <Search className="h-5 w-5" /> 학교 검색
             </DialogTitle>
           </DialogHeader>
           <div className="p-6 space-y-4">
@@ -475,10 +469,10 @@ export function SchoolClicker() {
                 placeholder="학교 이름을 입력하세요 (예: 서울초)"
                 value={searchKeyword}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10 h-12 rounded-xl focus-visible:ring-primary/30"
+                className="pl-10 h-12 rounded-xl focus-visible:ring-primary/30 bg-secondary/10 border-none"
                 autoFocus
               />
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/50" />
             </div>
             <ScrollArea className="h-[350px] -mx-2 px-2">
               <div className="space-y-1">
@@ -489,12 +483,12 @@ export function SchoolClicker() {
                     <button
                       key={idx}
                       onClick={() => selectSchool(school)}
-                      className="w-full text-left p-4 rounded-xl hover:bg-secondary transition-all flex items-center justify-between group"
+                      className="w-full text-left p-4 rounded-xl hover:bg-primary/5 transition-all flex items-center justify-between group"
                     >
                       <div className="flex flex-col">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-base group-hover:text-primary transition-colors">{school.SCHUL_NM}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded-md font-bold text-muted-foreground">
+                          <span className="text-[10px] px-1.5 py-0.5 bg-secondary text-secondary-foreground rounded-md font-bold">
                             {school.SCHUL_KND_SC_NM}
                           </span>
                         </div>
@@ -515,7 +509,7 @@ export function SchoolClicker() {
       </Dialog>
 
       <Dialog open={isClickModalOpen} onOpenChange={setIsClickModalOpen}>
-        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-card">
           {selectedSchool && (
             <div className="flex flex-col max-h-[90vh] overflow-y-auto">
               <div className="p-8 pb-4 text-center space-y-2">
@@ -523,7 +517,7 @@ export function SchoolClicker() {
                   {currentRank ? <Trophy className="h-3 w-3" /> : <Loader2 className="h-3 w-3 animate-spin" />}
                   {currentRank ? `전국 실시간 ${currentRank}위` : '순위 진입 중...'}
                 </div>
-                <DialogTitle className="text-2xl font-black tracking-tighter leading-tight">
+                <DialogTitle className="text-2xl font-black tracking-tighter leading-tight text-foreground">
                   {selectedSchool.SCHUL_NM}
                 </DialogTitle>
                 <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs font-medium">
@@ -535,7 +529,7 @@ export function SchoolClicker() {
 
               <div className="px-8 py-4 text-center space-y-6">
                 <div className="space-y-1">
-                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">총 누적 점수</div>
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">총 누적 점수</div>
                   <div className="text-5xl font-black text-primary tabular-nums tracking-tighter drop-shadow-sm">
                     {(currentSchoolServerData?.score || 0).toLocaleString()}
                   </div>
@@ -549,7 +543,7 @@ export function SchoolClicker() {
                     </div>
                     <Button
                       onClick={handleButtonClick}
-                      className="w-full h-24 text-3xl font-black rounded-[2rem] shadow-2xl shadow-primary/20 transition-all active:scale-[0.96] bg-primary hover:bg-primary"
+                      className="w-full h-24 text-3xl font-black rounded-[2rem] shadow-xl shadow-primary/20 transition-all active:scale-[0.96] bg-primary hover:bg-primary/90 text-primary-foreground"
                     >
                       CLICK!
                     </Button>
@@ -558,12 +552,12 @@ export function SchoolClicker() {
 
                 <div className="space-y-4">
                   <div className="text-left space-y-2">
-                    <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                    <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> 학교 위치 (카카오맵)
                     </div>
                     <div 
                       ref={mapContainerRef} 
-                      className="w-full h-40 rounded-2xl bg-secondary/30 overflow-hidden border border-border/20 shadow-inner"
+                      className="w-full h-40 rounded-2xl bg-secondary/30 overflow-hidden border border-border/30 shadow-inner"
                     />
                   </div>
 
@@ -574,17 +568,17 @@ export function SchoolClicker() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 pb-6">
                   <Button 
                     variant="outline" 
-                    className="flex-1 rounded-2xl h-12 font-bold border-2 hover:bg-secondary/50"
+                    className="flex-1 rounded-2xl h-12 font-bold border-2 hover:bg-secondary/50 border-border"
                     onClick={handleKakaoShare}
                   >
                     <Share2 className="h-4 w-4 mr-2" /> 카톡 공유
                   </Button>
                   <Button 
                     variant="ghost" 
-                    className="px-4 rounded-2xl h-12 opacity-40 hover:opacity-100"
+                    className="px-4 rounded-2xl h-12 opacity-40 hover:opacity-100 text-muted-foreground"
                     onClick={() => setIsClickModalOpen(false)}
                   >
                     닫기
@@ -597,36 +591,36 @@ export function SchoolClicker() {
       </Dialog>
 
       <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
-        <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl">
+        <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Key className="h-5 w-5 text-primary" /> 관리자 로그인
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <Key className="h-5 w-5" /> 관리자 로그인
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAdminLogin} className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-muted-foreground ml-1">이메일</label>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">이메일</label>
               <Input 
                 type="email" 
                 placeholder="admin@example.com" 
                 value={loginEmail} 
                 onChange={(e) => setLoginEmail(e.target.value)} 
                 required
-                className="rounded-xl"
+                className="rounded-xl bg-secondary/10 border-none"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-muted-foreground ml-1">비밀번호</label>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">비밀번호</label>
               <Input 
                 type="password" 
                 placeholder="••••••••" 
                 value={loginPassword} 
                 onChange={(e) => setLoginPassword(e.target.value)} 
                 required
-                className="rounded-xl"
+                className="rounded-xl bg-secondary/10 border-none"
               />
             </div>
-            <Button type="submit" className="w-full rounded-xl h-12 font-bold" disabled={isLoggingIn}>
+            <Button type="submit" className="w-full rounded-xl h-12 font-bold bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoggingIn}>
               {isLoggingIn ? <Loader2 className="animate-spin h-5 w-5" /> : "로그인"}
             </Button>
           </form>
@@ -634,10 +628,10 @@ export function SchoolClicker() {
       </Dialog>
 
       <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
-        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 bg-primary/10 flex flex-row items-center justify-between">
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Settings className="h-5 w-5 text-primary" /> 관리자 센터
+            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-primary">
+              <Settings className="h-5 w-5" /> 관리자 센터
             </DialogTitle>
             <div className="flex items-center gap-2">
                <Button 
@@ -650,19 +644,19 @@ export function SchoolClicker() {
                 {isResettingAll ? <Loader2 className="animate-spin h-3 w-3 mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
                 전체 초기화
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-xs font-bold text-destructive">
+              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-xs font-bold text-destructive hover:bg-destructive/10">
                 <LogOut className="h-3.5 w-3.5" />
               </Button>
             </div>
           </DialogHeader>
-          <div className="p-4 border-b">
+          <div className="p-4 border-b bg-secondary/5">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/50" />
               <Input 
                 placeholder="학교 검색" 
                 value={adminSearchQuery}
                 onChange={(e) => setAdminSearchQuery(e.target.value)}
-                className="pl-9 h-10 rounded-xl"
+                className="pl-9 h-10 rounded-xl bg-background border-border"
               />
             </div>
           </div>
@@ -673,7 +667,7 @@ export function SchoolClicker() {
                   filteredAdminSchools.map((school: any) => (
                     <div key={school.id} className="flex items-center justify-between p-4 px-6 hover:bg-secondary/10 transition-colors">
                       <div className="flex flex-col">
-                        <span className="text-sm font-bold">{school.name}</span>
+                        <span className="text-sm font-bold text-foreground">{school.name}</span>
                         <span className="text-[10px] text-muted-foreground">{(school.score || 0).toLocaleString()} clicks</span>
                       </div>
                       <Button 
@@ -695,8 +689,8 @@ export function SchoolClicker() {
               </div>
             </ScrollArea>
           </div>
-          <div className="p-4 bg-secondary/10 flex justify-center">
-            <Button variant="outline" size="sm" onClick={() => setIsAdminDialogOpen(false)} className="rounded-full text-xs font-bold">
+          <div className="p-4 bg-secondary/5 flex justify-center">
+            <Button variant="outline" size="sm" onClick={() => setIsAdminDialogOpen(false)} className="rounded-full text-[10px] font-bold h-8 border-border">
               센터 종료
             </Button>
           </div>
@@ -717,7 +711,7 @@ function InfoItem({ icon, label, value, isLink, href }: { icon: any, label: stri
       </div>
       <div className="text-[10px] font-bold truncate">
         {isLink ? (
-          <a href={linkHref} target="_blank" rel="noreferrer" className="text-primary hover:underline block truncate">
+          <a href={linkHref} target="_blank" rel="noreferrer" className="text-primary hover:underline block truncate font-black">
             사이트 방문
           </a>
         ) : value}

@@ -18,7 +18,8 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    /* Unified Light Theme - Clean Blue Base */
+    --background: 210 40% 99%;
     --foreground: 222.2 84% 4.9%;
     
     --card: 0 0% 100%;
@@ -46,7 +47,7 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     
-    --radius: 0.75rem;
+    --radius: 1rem;
   }
 
   .dark {
