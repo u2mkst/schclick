@@ -109,7 +109,7 @@ export function SchoolClicker() {
     <div className="w-full min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <GraduationCap className="h-5 w-5 text-primary" />
             <h1 className="text-xl font-bold tracking-tight">SCHOOL CLICK</h1>
           </div>
@@ -123,7 +123,7 @@ export function SchoolClicker() {
         <section>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline" className="w-full h-14 text-base font-semibold rounded-2xl border-2">
+              <Button variant="outline" className="w-full h-14 text-base font-semibold rounded-2xl border-2 hover:bg-secondary/50">
                 <Search className="mr-2 h-4 w-4" /> 
                 학교 검색
               </Button>
@@ -167,8 +167,8 @@ export function SchoolClicker() {
           </Dialog>
         </section>
 
-        <Card className="border-none shadow-sm bg-secondary/30">
-          <CardHeader className="py-4 px-6">
+        <Card className="border-none shadow-sm bg-secondary/30 rounded-2xl overflow-hidden">
+          <CardHeader className="py-4 px-6 border-b border-border/50">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <Trophy className="h-4 w-4 text-primary" /> 실시간 순위
             </CardTitle>
@@ -179,9 +179,11 @@ export function SchoolClicker() {
                 <div className="flex justify-center p-6"><Loader2 className="animate-spin h-5 w-5 text-primary" /></div>
               ) : rankings.length > 0 ? (
                 rankings.map((school: any, idx: number) => (
-                  <div key={school.id} className="flex items-center justify-between p-3 px-6">
+                  <div key={school.id} className="flex items-center justify-between p-3 px-6 hover:bg-secondary/20 transition-colors">
                     <div className="flex items-center gap-4">
-                      <span className="w-4 text-sm font-bold opacity-50">{idx + 1}</span>
+                      <span className={`w-6 text-center text-sm font-black ${idx < 3 ? 'text-primary' : 'opacity-30'}`}>
+                        {idx + 1}
+                      </span>
                       <div className="flex flex-col">
                         <span className="font-bold text-sm">{school.name}</span>
                         <span className="text-[10px] text-muted-foreground">{school.officeName}</span>
@@ -199,31 +201,38 @@ export function SchoolClicker() {
 
         <section className="text-center space-y-6 pt-4">
           <div className="space-y-1">
-            <h2 className="text-2xl font-black">
+            <h2 className="text-3xl font-black tracking-tight">
               {selectedSchool ? selectedSchool.SCHUL_NM : "학교를 선택하세요"}
             </h2>
             {selectedSchool && (
-              <p className="text-primary font-bold">
+              <p className="text-primary font-black text-lg">
                 SCORE: {(currentSchoolServerData?.score || 0).toLocaleString()}
               </p>
             )}
           </div>
 
           <div className="py-4">
-            <div className="text-6xl font-black mb-6">{localClicks.toLocaleString()}</div>
+            <div className="text-7xl font-black mb-8 tabular-nums tracking-tighter">
+              {localClicks.toLocaleString()}
+            </div>
             <Button
               onClick={handleButtonClick}
               disabled={!selectedSchool}
-              size="lg"
-              className="w-full h-24 text-2xl font-black rounded-3xl shadow-xl transition-all active:scale-[0.98]"
+              className="w-full h-28 text-3xl font-black rounded-[2rem] shadow-2xl shadow-primary/20 transition-all active:scale-95 click-btn-active"
             >
               CLICK!
             </Button>
           </div>
 
           {selectedSchool && (
-            <div className="grid grid-cols-2 gap-2 text-left">
-              <InfoRow icon={<MapPin className="h-3 w-3" />} label="주소" value={selectedSchool.ORG_RDNMA} />
+            <div className="grid grid-cols-2 gap-3 text-left">
+              <InfoRow 
+                icon={<MapPin className="h-3 w-3" />} 
+                label="주소 (지도 보기)" 
+                value={selectedSchool.ORG_RDNMA} 
+                isLink 
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedSchool.SCHUL_NM + ' ' + selectedSchool.ORG_RDNMA)}`}
+              />
               <InfoRow icon={<Phone className="h-3 w-3" />} label="전화" value={selectedSchool.ORG_TELNO} />
               <InfoRow icon={<LinkIcon className="h-3 w-3" />} label="웹사이트" value={selectedSchool.HMPG_ADRES} isLink />
               <InfoRow icon={<Calendar className="h-3 w-3" />} label="설립일" value={formatDate(selectedSchool.FOND_YMD)} />
@@ -232,24 +241,26 @@ export function SchoolClicker() {
         </section>
       </main>
 
-      <footer className="w-full py-8 text-center border-t mt-10">
-        <p className="text-xs font-medium text-muted-foreground opacity-50">©2026 KST</p>
+      <footer className="w-full py-10 text-center border-t mt-12 bg-secondary/10">
+        <p className="text-xs font-bold text-muted-foreground tracking-widest opacity-40">©2026 KST</p>
       </footer>
     </div>
   );
 }
 
-function InfoRow({ icon, label, value, isLink }: { icon: any, label: string, value: string, isLink?: boolean }) {
+function InfoRow({ icon, label, value, isLink, href }: { icon: any, label: string, value: string, isLink?: boolean, href?: string }) {
   if (!value || value === "정보 없음") return null;
+  const linkHref = href || (value.startsWith('http') ? value : `http://${value}`);
+  
   return (
-    <div className="p-3 bg-secondary/30 rounded-xl space-y-1">
-      <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase">
+    <div className="p-4 bg-secondary/30 rounded-2xl space-y-1 hover:bg-secondary/50 transition-colors">
+      <div className="flex items-center gap-1.5 text-[10px] font-black text-muted-foreground uppercase tracking-wider">
         {icon} {label}
       </div>
-      <div className="text-xs font-medium truncate">
+      <div className="text-xs font-bold truncate">
         {isLink ? (
-          <a href={value.startsWith('http') ? value : `http://${value}`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-            링크
+          <a href={linkHref} target="_blank" rel="noreferrer" className="text-primary hover:underline block">
+            {href ? value : '홈페이지 방문'}
           </a>
         ) : value}
       </div>
