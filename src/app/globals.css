@@ -4,38 +4,38 @@
 
 @layer base {
   :root {
-    /* Main Background: #0f172a */
-    --background: 222 47% 11%;
+    /* Main Background: Deep Navy */
+    --background: 222 47% 7%;
     --foreground: 210 40% 98%;
     
-    --card: 222 47% 13%;
+    --card: 222 47% 10%;
     --card-foreground: 210 40% 98%;
     
-    --popover: 222 47% 11%;
+    --popover: 222 47% 7%;
     --popover-foreground: 210 40% 98%;
     
-    /* Primary: #2563eb */
-    --primary: 221 83% 53%;
+    /* Primary: Electric Blue */
+    --primary: 217 91% 60%;
     --primary-foreground: 210 40% 98%;
     
-    --secondary: 217 33% 17%;
+    --secondary: 217 33% 15%;
     --secondary-foreground: 210 40% 98%;
     
-    --muted: 217 33% 17%;
+    --muted: 217 33% 15%;
     --muted-foreground: 215 20% 65%;
     
-    /* Accent: #4dd7ea (Cyan) */
-    --accent: 187 81% 61%;
-    --accent-foreground: 222 47% 11%;
+    /* Accent: Vivid Cyan */
+    --accent: 187 81% 55%;
+    --accent-foreground: 222 47% 7%;
     
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
     
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 221 83% 53%;
+    --border: 217 33% 15%;
+    --input: 217 33% 15%;
+    --ring: 217 91% 60%;
     
-    --radius: 1.25rem;
+    --radius: 1.5rem;
   }
 }
 
@@ -44,18 +44,36 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-body;
+    @apply bg-background text-foreground font-body selection:bg-primary/30;
   }
 }
 
 .glass-card {
-  @apply bg-white/5 border border-white/10 backdrop-blur-md;
+  @apply bg-white/[0.03] border border-white/[0.08] backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.4)];
 }
 
 .click-btn-active:active {
-  transform: scale(0.96);
+  @apply scale-95 brightness-110 transition-all duration-75;
 }
 
 .text-cyan {
-  color: hsl(187 81% 61%);
+  color: hsl(187 81% 55%);
+}
+
+.neon-glow {
+  text-shadow: 0 0 10px hsla(187, 81%, 55%, 0.5), 0 0 20px hsla(187, 81%, 55%, 0.3);
+}
+
+.rank-item {
+  @apply transition-all duration-300 hover:bg-white/[0.05] hover:translate-x-1 cursor-default;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.float-animation {
+  animation: float 4s ease-in-out infinite;
 }
