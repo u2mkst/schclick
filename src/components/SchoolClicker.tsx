@@ -141,6 +141,9 @@ export function SchoolClicker() {
 
   const handleResetScore = (schoolId: string) => {
     if (!db) return;
+    const confirmReset = confirm("정말로 이 학교의 점수를 초기화하시겠습니까?");
+    if (!confirmReset) return;
+
     const schoolRef = doc(db, "schools", schoolId);
     setDoc(schoolRef, { score: 0, updatedAt: serverTimestamp() }, { merge: true })
     .catch(async () => {
@@ -161,6 +164,7 @@ export function SchoolClicker() {
     const password = prompt("관리자 비밀번호를 입력하세요:");
     if (password === "kst12345") {
       setIsAdminMode(true);
+      alert("관리자 모드가 활성화되었습니다.");
     } else if (password !== null) {
       alert("비밀번호가 올바르지 않습니다.");
     }
@@ -265,15 +269,12 @@ export function SchoolClicker() {
 
       <footer className="w-full py-10 text-center border-t mt-12 bg-secondary/10">
         <div className="flex flex-col items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="text-[10px] opacity-30 hover:opacity-100 h-6 px-2"
+          <button 
             onClick={toggleAdminMode}
+            className="text-xs font-bold text-muted-foreground tracking-widest opacity-40 hover:opacity-100 transition-opacity outline-none"
           >
-            {isAdminMode ? "ADMIN OFF" : "ADMIN ON"}
-          </Button>
-          <p className="text-xs font-bold text-muted-foreground tracking-widest opacity-40">©2026 KST</p>
+            ©2026 KST
+          </button>
         </div>
       </footer>
 
@@ -412,3 +413,4 @@ function formatDate(dateStr: string) {
   if (!dateStr || dateStr.length !== 8) return "";
   return `${dateStr.substring(0, 4)}.${dateStr.substring(4, 6)}.${dateStr.substring(6, 8)}`;
 }
+    
