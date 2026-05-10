@@ -64,6 +64,7 @@ export function SchoolClicker() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // 테마 설정 로드
     const savedTheme = localStorage.getItem("theme");
     const themeIsDark = savedTheme === "dark";
     setIsDark(themeIsDark);
@@ -73,6 +74,7 @@ export function SchoolClicker() {
       document.documentElement.classList.remove("dark");
     }
 
+    // 로컬 클릭 수 로드
     const savedClicks = localStorage.getItem("myTotalClicks");
     if (savedClicks) {
       setMyTotalClicks(parseInt(savedClicks, 10));
@@ -80,57 +82,60 @@ export function SchoolClicker() {
 
     // Kakao SDK 초기화 안전 장치
     const initKakao = () => {
-      if (window.Kakao && !window.Kakao.isInitialized()) {
-        try {
+      try {
+        if (window.Kakao && !window.Kakao.isInitialized()) {
           window.Kakao.init('619a98fc6bc8426aa8804d86591c7a6c');
-        } catch (e) {
-          console.error("Kakao SDK Init Error:", e);
         }
+      } catch (e) {
+        console.warn("Kakao SDK initialization deferred or failed.");
       }
     };
     
-    // 스크립트 로드 대기를 위한 지연 실행
-    const timer = setTimeout(initKakao, 1000);
+    const timer = setTimeout(initKakao, 1500);
     return () => clearTimeout(timer);
   }, []);
 
+  // 익명 로그인 유지
   useEffect(() => {
     if (auth && !isUserLoading && !user) {
       signInAnonymously(auth).catch(() => {});
     }
   }, [auth, user, isUserLoading]);
 
+  // 카카오맵 로드 로직
   useEffect(() => {
     if (isClickModalOpen && selectedSchool && mapContainerRef.current) {
       const loadMap = () => {
         if (!window.kakao || !window.kakao.maps) {
-          console.warn("Kakao Maps SDK not loaded yet.");
           return;
         }
         
-        window.kakao.maps.load(() => {
-          const geocoder = new window.kakao.maps.services.Geocoder();
-          geocoder.addressSearch(selectedSchool.ORG_RDNMA, (result: any, status: any) => {
-            if (status === window.kakao.maps.services.Status.OK) {
-              const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x);
-              const options = {
-                center: coords,
-                level: 3
-              };
-              if (mapContainerRef.current) {
+        try {
+          window.kakao.maps.load(() => {
+            const geocoder = new window.kakao.maps.services.Geocoder();
+            geocoder.addressSearch(selectedSchool.ORG_RDNMA, (result: any, status: any) => {
+              if (status === window.kakao.maps.services.Status.OK && mapContainerRef.current) {
+                const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x);
+                const options = {
+                  center: coords,
+                  level: 3
+                };
                 const map = new window.kakao.maps.Map(mapContainerRef.current, options);
                 new window.kakao.maps.Marker({
                   map: map,
                   position: coords
                 });
-                map.setCenter(coords);
               }
-            }
+            });
           });
-        });
+        } catch (e) {
+          console.error("Map loading error:", e);
+        }
       };
 
-      loadMap();
+      // 스크립트가 로드될 때까지 약간의 지연 후 실행
+      const timer = setTimeout(loadMap, 500);
+      return () => clearTimeout(timer);
     }
   }, [isClickModalOpen, selectedSchool]);
 
@@ -248,17 +253,15 @@ export function SchoolClicker() {
       });
     };
 
-    if (window.grecaptcha) {
+    // reCAPTCHA 체크
+    if (window.grecaptcha && window.grecaptcha.ready) {
       try {
         window.grecaptcha.ready(() => {
           window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
             .then((token: string) => {
-              if (token) {
-                executeClick();
-              } else {
-                toast({ variant: "destructive", title: "보안 검증 실패", description: "정상적인 접근이 아닙니다." });
-              }
-            }).catch(() => executeClick()); // 리캡차 오류 시에도 일단 클릭 허용 (사용자 경험 우선)
+              if (token) executeClick();
+              else toast({ variant: "destructive", title: "보안 검증 오류", description: "다시 시도해주세요." });
+            }).catch(() => executeClick());
         });
       } catch (e) {
         executeClick();
@@ -269,13 +272,13 @@ export function SchoolClicker() {
   };
 
   const handleKakaoShare = () => {
-    if (!selectedSchool || !window.Kakao) {
-      toast({ variant: "destructive", title: "공유 실패", description: "카카오 SDK가 아직 준비되지 않았습니다." });
+    if (!selectedSchool || !window.Kakao || !window.Kakao.isInitialized()) {
+      toast({ variant: "destructive", title: "공유 실패", description: "카카오톡 서비스를 준비 중입니다." });
       return;
     }
     
     const score = currentSchoolServerData?.score || 0;
-    const rankText = currentRank ? `현재 실시간 ${currentRank}위!` : '지금 바로 응원하세요!';
+    const rankText = currentRank ? `전국 실시간 ${currentRank}위!` : '지금 바로 응원하세요!';
 
     try {
       window.Kakao.Share.sendDefault({
@@ -300,7 +303,7 @@ export function SchoolClicker() {
         ],
       });
     } catch (e) {
-      toast({ variant: "destructive", title: "공유 실패", description: "카카오톡 공유 도중 오류가 발생했습니다." });
+      toast({ variant: "destructive", title: "공유 실패", description: "오류가 발생했습니다." });
     }
   };
 
@@ -310,35 +313,25 @@ export function SchoolClicker() {
     if (!confirmReset) return;
 
     const schoolRef = doc(db, "schools", schoolId);
-    setDoc(schoolRef, { score: 0, updatedAt: serverTimestamp() }, { merge: true })
-    .catch(async () => {
-      const permissionError = new FirestorePermissionError({
-        path: schoolRef.path,
-        operation: 'write',
-        requestResourceData: { score: 0 },
-      });
-      errorEmitter.emit('permission-error', permissionError);
-    });
+    setDoc(schoolRef, { score: 0, updatedAt: serverTimestamp() }, { merge: true });
   };
 
   const handleResetAllScores = async () => {
     if (!db || !isAdmin) return;
-    const confirmReset = confirm("전체 학교의 점수를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.");
+    const confirmReset = confirm("전체 학교의 점수를 초기화하시겠습니까?");
     if (!confirmReset) return;
 
     setIsResettingAll(true);
     try {
       const querySnapshot = await getDocs(collection(db, "schools"));
       const batch = writeBatch(db);
-      
       querySnapshot.forEach((doc) => {
         batch.update(doc.ref, { score: 0, updatedAt: serverTimestamp() });
       });
-
       await batch.commit();
-      toast({ title: "초기화 완료", description: "모든 학교의 점수가 0으로 초기화되었습니다." });
+      toast({ title: "초기화 완료" });
     } catch (error) {
-      toast({ variant: "destructive", title: "초기화 실패", description: "권한이 없거나 오류가 발생했습니다." });
+      toast({ variant: "destructive", title: "초기화 실패" });
     } finally {
       setIsResettingAll(false);
     }
@@ -352,14 +345,8 @@ export function SchoolClicker() {
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setIsLoginDialogOpen(false);
       setIsAdminDialogOpen(true);
-      setLoginEmail("");
-      setLoginPassword("");
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "로그인 실패",
-        description: "이메일 또는 비밀번호를 확인해주세요."
-      });
+      toast({ variant: "destructive", title: "로그인 실패", description: "계정을 확인해주세요." });
     } finally {
       setIsLoggingIn(false);
     }
@@ -369,14 +356,10 @@ export function SchoolClicker() {
     if (!auth) return;
     await signOut(auth);
     setIsAdminDialogOpen(false);
-    toast({
-      title: "로그아웃 완료",
-      description: "익명 모드로 전환되었습니다."
-    });
   };
 
   return (
-    <div className="w-full min-h-screen flex flex-col bg-background text-foreground transition-colors duration-300">
+    <div className="w-full min-h-screen flex flex-col bg-background text-foreground">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
@@ -401,7 +384,7 @@ export function SchoolClicker() {
           <Button 
             variant="outline" 
             onClick={() => setIsSearchOpen(true)}
-            className="w-full h-14 text-base font-bold rounded-2xl border-2 hover:bg-primary/5 hover:border-primary/30 justify-start px-6 shadow-sm transition-all active:scale-[0.98]"
+            className="w-full h-14 text-base font-bold rounded-2xl border-2 hover:bg-primary/5 hover:border-primary/30 justify-start px-6 shadow-sm"
           >
             <Search className="mr-3 h-5 w-5 text-primary" /> 
             우리 학교를 검색해보세요
@@ -427,7 +410,7 @@ export function SchoolClicker() {
                   >
                     <div className="flex items-center gap-4">
                       <span className={cn(
-                        "w-6 text-center text-sm font-black transition-transform group-hover:scale-110",
+                        "w-6 text-center text-sm font-black",
                         idx === 0 ? "text-yellow-500 text-lg" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-amber-600" : "text-muted-foreground/40"
                       )}>
                         {idx + 1}
@@ -477,7 +460,7 @@ export function SchoolClicker() {
       <footer className="w-full py-10 text-center border-t mt-12 bg-secondary/10">
         <button 
           onClick={() => isAdmin ? setIsAdminDialogOpen(true) : setIsLoginDialogOpen(true)}
-          className="text-[10px] font-bold text-muted-foreground tracking-widest opacity-30 hover:opacity-100 transition-opacity outline-none"
+          className="text-[10px] font-bold text-muted-foreground tracking-widest opacity-30 hover:opacity-100 transition-opacity"
         >
           ©2026 KST
         </button>
@@ -496,7 +479,7 @@ export function SchoolClicker() {
                 placeholder="학교 이름을 입력하세요 (예: 서울초)"
                 value={searchKeyword}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10 h-12 rounded-xl focus-visible:ring-primary/30 bg-secondary/10 border-none"
+                className="pl-10 h-12 rounded-xl bg-secondary/10 border-none"
                 autoFocus
               />
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-primary/50" />
@@ -525,9 +508,9 @@ export function SchoolClicker() {
                     </button>
                   ))
                 ) : searchKeyword.length >= 2 ? (
-                  <div className="text-center p-12 text-sm text-muted-foreground">검색 결과가 없습니다.</div>
+                  <div className="text-center p-12 text-sm text-muted-foreground">결과가 없습니다.</div>
                 ) : (
-                  <div className="text-center p-12 text-sm text-muted-foreground">학교명을 2글자 이상 입력해주세요.</div>
+                  <div className="text-center p-12 text-sm text-muted-foreground">학교명을 2글자 이상 입력하세요.</div>
                 )}
               </div>
             </ScrollArea>
@@ -544,7 +527,7 @@ export function SchoolClicker() {
                   {currentRank ? <Trophy className="h-3 w-3" /> : <Loader2 className="h-3 w-3 animate-spin" />}
                   {currentRank ? `전국 실시간 ${currentRank}위` : '순위 진입 중...'}
                 </div>
-                <DialogTitle className="text-2xl font-black tracking-tighter leading-tight text-foreground">
+                <DialogTitle className="text-2xl font-black tracking-tighter leading-tight">
                   {selectedSchool.SCHUL_NM}
                 </DialogTitle>
                 <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs font-medium">
@@ -556,25 +539,19 @@ export function SchoolClicker() {
 
               <div className="px-8 py-4 text-center space-y-6">
                 <div className="space-y-1">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">총 누적 점수</div>
-                  <div className="text-5xl font-black text-primary tabular-nums tracking-tighter drop-shadow-sm">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">총 누적 점수</div>
+                  <div className="text-5xl font-black text-primary tabular-nums tracking-tighter">
                     {(currentSchoolServerData?.score || 0).toLocaleString()}
                   </div>
                 </div>
 
                 <div className="relative group">
-                  <div className="absolute -inset-4 bg-primary/15 rounded-[3rem] blur-2xl group-active:blur-3xl transition-all opacity-0 group-active:opacity-100" />
-                  <div className="relative">
-                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 text-3xl font-black text-primary animate-bounce pointer-events-none opacity-0 group-active:opacity-100 transition-opacity">
-                      +{localClicks}
-                    </div>
-                    <Button
-                      onClick={handleButtonClick}
-                      className="w-full h-24 text-3xl font-black rounded-[2rem] shadow-xl shadow-primary/20 transition-all active:scale-[0.96] bg-primary hover:bg-primary/90 text-primary-foreground"
-                    >
-                      CLICK!
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={handleButtonClick}
+                    className="w-full h-24 text-3xl font-black rounded-[2rem] shadow-xl transition-all active:scale-[0.96] bg-primary hover:bg-primary/90 text-primary-foreground"
+                  >
+                    CLICK!
+                  </Button>
                 </div>
 
                 <div className="space-y-4">
@@ -584,7 +561,7 @@ export function SchoolClicker() {
                     </div>
                     <div 
                       ref={mapContainerRef} 
-                      className="w-full h-40 rounded-2xl bg-secondary/30 overflow-hidden border border-border/30 shadow-inner"
+                      className="w-full h-40 rounded-2xl bg-secondary/30 overflow-hidden border border-border/30"
                     />
                   </div>
 
@@ -598,14 +575,14 @@ export function SchoolClicker() {
                 <div className="flex gap-2 pb-6">
                   <Button 
                     variant="outline" 
-                    className="flex-1 rounded-2xl h-12 font-bold border-2 hover:bg-secondary/50 border-border"
+                    className="flex-1 rounded-2xl h-12 font-bold border-2"
                     onClick={handleKakaoShare}
                   >
                     <Share2 className="h-4 w-4 mr-2" /> 카톡 공유
                   </Button>
                   <Button 
                     variant="ghost" 
-                    className="px-4 rounded-2xl h-12 opacity-40 hover:opacity-100 text-muted-foreground"
+                    className="px-4 rounded-2xl h-12 opacity-40 hover:opacity-100"
                     onClick={() => setIsClickModalOpen(false)}
                   >
                     닫기
@@ -626,28 +603,28 @@ export function SchoolClicker() {
           </DialogHeader>
           <form onSubmit={handleAdminLogin} className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">이메일</label>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground">이메일</label>
               <Input 
                 type="email" 
                 placeholder="admin@example.com" 
                 value={loginEmail} 
                 onChange={(e) => setLoginEmail(e.target.value)} 
-                required
                 className="rounded-xl bg-secondary/10 border-none"
+                required
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase text-muted-foreground ml-1">비밀번호</label>
+              <label className="text-[10px] font-bold uppercase text-muted-foreground">비밀번호</label>
               <Input 
                 type="password" 
                 placeholder="••••••••" 
                 value={loginPassword} 
                 onChange={(e) => setLoginPassword(e.target.value)} 
-                required
                 className="rounded-xl bg-secondary/10 border-none"
+                required
               />
             </div>
-            <Button type="submit" className="w-full rounded-xl h-12 font-bold bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoggingIn}>
+            <Button type="submit" className="w-full rounded-xl h-12 font-bold" disabled={isLoggingIn}>
               {isLoggingIn ? <Loader2 className="animate-spin h-5 w-5" /> : "로그인"}
             </Button>
           </form>
@@ -666,12 +643,11 @@ export function SchoolClicker() {
                 size="sm" 
                 onClick={handleResetAllScores} 
                 disabled={isResettingAll}
-                className="text-[10px] font-bold h-8 rounded-lg"
+                className="text-[10px] h-8"
               >
-                {isResettingAll ? <Loader2 className="animate-spin h-3 w-3 mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
-                전체 초기화
+                {isResettingAll ? "초기화 중..." : "전체 초기화"}
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-xs font-bold text-destructive hover:bg-destructive/10">
+              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-xs font-bold text-destructive">
                 <LogOut className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -690,36 +666,24 @@ export function SchoolClicker() {
           <div className="p-0">
             <ScrollArea className="h-[400px]">
               <div className="divide-y divide-border/20">
-                {filteredAdminSchools.length > 0 ? (
-                  filteredAdminSchools.map((school: any) => (
-                    <div key={school.id} className="flex items-center justify-between p-4 px-6 hover:bg-secondary/10 transition-colors">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-foreground">{school.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{(school.score || 0).toLocaleString()} clicks</span>
-                      </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="h-8 rounded-lg text-[10px] font-bold text-destructive border-destructive/20 hover:bg-destructive/10"
-                        onClick={() => handleResetScore(school.id)}
-                      >
-                        <RotateCcw className="h-3 w-3 mr-1.5" /> 리셋
-                      </Button>
+                {filteredAdminSchools.map((school: any) => (
+                  <div key={school.id} className="flex items-center justify-between p-4 px-6 hover:bg-secondary/10">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold">{school.name}</span>
+                      <span className="text-[10px] text-muted-foreground">{school.score || 0} clicks</span>
                     </div>
-                  ))
-                ) : (
-                  <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground gap-3">
-                    <AlertCircle className="h-8 w-8 opacity-20" />
-                    <p className="text-sm">검색 결과가 없거나 등록된 학교가 없습니다.</p>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-8 text-[10px] text-destructive"
+                      onClick={() => handleResetScore(school.id)}
+                    >
+                      리셋
+                    </Button>
                   </div>
-                )}
+                ))}
               </div>
             </ScrollArea>
-          </div>
-          <div className="p-4 bg-secondary/5 flex justify-center">
-            <Button variant="outline" size="sm" onClick={() => setIsAdminDialogOpen(false)} className="rounded-full text-[10px] font-bold h-8 border-border">
-              센터 종료
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -727,19 +691,19 @@ export function SchoolClicker() {
   );
 }
 
-function InfoItem({ icon, label, value, isLink, href }: { icon: any, label: string, value: string, isLink?: boolean, href?: string }) {
+function InfoItem({ icon, label, value, isLink }: { icon: any, label: string, value: string, isLink?: boolean }) {
   if (!value || value === "정보 없음" || value === " ") return null;
-  const linkHref = href || (value.startsWith('http') ? value : `http://${value}`);
+  const linkHref = value.startsWith('http') ? value : `http://${value}`;
   
   return (
-    <div className="p-3 bg-secondary/30 rounded-2xl space-y-1 hover:bg-secondary/50 transition-colors text-left overflow-hidden border border-transparent hover:border-border/20">
+    <div className="p-3 bg-secondary/30 rounded-2xl space-y-1 text-left overflow-hidden border border-transparent">
       <div className="flex items-center gap-1.5 text-[9px] font-black text-muted-foreground uppercase tracking-wider">
         {icon} {label}
       </div>
       <div className="text-[10px] font-bold truncate">
         {isLink ? (
-          <a href={linkHref} target="_blank" rel="noreferrer" className="text-primary hover:underline block truncate font-black">
-            사이트 방문
+          <a href={linkHref} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+            방문하기
           </a>
         ) : value}
       </div>
