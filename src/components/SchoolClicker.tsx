@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Search, Trophy, Loader2, MapPin, 
   Phone, Link as LinkIcon, Calendar, GraduationCap, 
-  Moon, Sun, Settings, RotateCcw, X, AlertCircle
+  Moon, Sun, Settings, RotateCcw, X, AlertCircle,
+  MousePointer2, Globe
 } from "lucide-react";
 import {
   Dialog,
@@ -38,7 +39,25 @@ export function SchoolClicker() {
   const [isClickModalOpen, setIsClickModalOpen] = useState(false);
   const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
   const [localClicks, setLocalClicks] = useState(0);
+  const [myTotalClicks, setMyTotalClicks] = useState(0);
   const [isDark, setIsDark] = useState(false);
+
+  // Theme Persistence
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    const themeIsDark = savedTheme === "dark";
+    setIsDark(themeIsDark);
+    if (themeIsDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+
+    const savedClicks = localStorage.getItem("myTotalClicks");
+    if (savedClicks) {
+      setMyTotalClicks(parseInt(savedClicks, 10));
+    }
+  }, []);
 
   // Auth
   useEffect(() => {
@@ -55,6 +74,11 @@ export function SchoolClicker() {
   
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const rankings = useMemo(() => rankingsData || [], [rankingsData]);
+
+  // Global Total Clicks (Sum of rankings)
+  const globalTotalClicks = useMemo(() => {
+    return rankings.reduce((acc: number, school: any) => acc + (school.score || 0), 0);
+  }, [rankings]);
 
   // Current School Data from Server
   const currentSchoolServerData = useMemo(() => {
@@ -73,9 +97,11 @@ export function SchoolClicker() {
     const nextDark = !isDark;
     setIsDark(nextDark);
     if (nextDark) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
     }
   };
 
@@ -116,7 +142,13 @@ export function SchoolClicker() {
 
   const handleButtonClick = () => {
     if (!selectedSchool || !db) return;
-    setLocalClicks(prev => prev + 1);
+    
+    const newLocal = localClicks + 1;
+    const newTotal = myTotalClicks + 1;
+    setLocalClicks(newLocal);
+    setMyTotalClicks(newTotal);
+    localStorage.setItem("myTotalClicks", newTotal.toString());
+
     const schoolRef = doc(db, "schools", selectedSchool.SD_SCHUL_CODE);
     setDoc(schoolRef, {
       id: selectedSchool.SD_SCHUL_CODE,
@@ -233,6 +265,24 @@ export function SchoolClicker() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Clicks Summary */}
+        <section className="grid grid-cols-2 gap-4">
+          <Card className="bg-primary/5 border-none rounded-2xl p-4 flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-xl text-primary"><MousePointer2 className="h-5 w-5" /></div>
+            <div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">나의 누적 클릭</div>
+              <div className="text-lg font-black tabular-nums">{myTotalClicks.toLocaleString()}</div>
+            </div>
+          </Card>
+          <Card className="bg-secondary/30 border-none rounded-2xl p-4 flex items-center gap-3">
+            <div className="p-2 bg-secondary/50 rounded-xl text-muted-foreground"><Globe className="h-5 w-5" /></div>
+            <div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">전체 누적 점수</div>
+              <div className="text-lg font-black tabular-nums">{globalTotalClicks.toLocaleString()}</div>
+            </div>
+          </Card>
+        </section>
       </main>
 
       <footer className="w-full py-10 text-center border-t mt-12 bg-secondary/10">
@@ -302,7 +352,7 @@ export function SchoolClicker() {
                   {currentRank ? <Trophy className="h-3 w-3" /> : <Loader2 className="h-3 w-3 animate-spin" />}
                   {currentRank ? `전국 실시간 ${currentRank}위` : '순위 진입 중...'}
                 </div>
-                <DialogTitle className="text-3xl font-black tracking-tighter leading-tight">
+                <DialogTitle className="text-2xl font-black tracking-tighter leading-tight">
                   {selectedSchool.SCHUL_NM}
                 </DialogTitle>
                 <div className="flex items-center justify-center gap-1 text-muted-foreground text-xs font-medium">
@@ -313,7 +363,7 @@ export function SchoolClicker() {
               <div className="px-8 py-6 text-center space-y-6">
                 <div className="space-y-1">
                   <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">총 누적 점수</div>
-                  <div className="text-6xl font-black text-primary tabular-nums tracking-tighter drop-shadow-sm">
+                  <div className="text-5xl font-black text-primary tabular-nums tracking-tighter drop-shadow-sm">
                     {(currentSchoolServerData?.score || 0).toLocaleString()}
                   </div>
                 </div>
@@ -326,14 +376,14 @@ export function SchoolClicker() {
                     </div>
                     <Button
                       onClick={handleButtonClick}
-                      className="w-full h-36 text-5xl font-black rounded-[2.5rem] shadow-2xl shadow-primary/20 transition-all active:scale-[0.96] bg-primary hover:bg-primary"
+                      className="w-full h-24 text-3xl font-black rounded-[2rem] shadow-2xl shadow-primary/20 transition-all active:scale-[0.96] bg-primary hover:bg-primary"
                     >
                       CLICK!
                     </Button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5 pt-4">
+                <div className="grid grid-cols-2 gap-2.5 pt-2">
                   <InfoItem 
                     icon={<MapPin className="h-3 w-3" />} 
                     label="주소" 
@@ -429,4 +479,3 @@ function formatDate(dateStr: string) {
   if (!dateStr || dateStr.length !== 8) return "";
   return `${dateStr.substring(0, 4)}년 ${dateStr.substring(4, 6)}월 ${dateStr.substring(6, 8)}일`;
 }
-    
