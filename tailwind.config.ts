@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Pretendard', 'sans-serif'],
-        headline: ['Pretendard', 'sans-serif'],
+        body: ['Paperozi', 'sans-serif'],
+        headline: ['Isamanru', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {

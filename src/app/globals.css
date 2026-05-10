@@ -2,9 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: 'Paperozi';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Isamanru';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-10@1.0/GongGothicMedium.woff') format('woff');
+  font-weight: normal;
+  font-display: swap;
+}
+
 @layer base {
   :root {
-    /* Light Mode: Clean White */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     
@@ -37,7 +50,6 @@
   }
 
   .dark {
-    /* Dark Mode: Deep Navy */
     --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
     
@@ -74,6 +86,9 @@
   }
   body {
     @apply bg-background text-foreground font-body antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline;
   }
 }
 
