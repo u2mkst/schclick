@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -84,7 +83,7 @@ export function SchoolClicker() {
       setMyTotalClicks(parseInt(savedClicks, 10));
     }
 
-    // Kakao SDK Initialization with better timing
+    // Kakao SDK Initialization
     const initKakao = () => {
       if (window.Kakao && !window.Kakao.isInitialized()) {
         try {
@@ -100,7 +99,7 @@ export function SchoolClicker() {
         initKakao();
         clearInterval(interval);
       }
-    }, 500);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, []);
@@ -112,22 +111,43 @@ export function SchoolClicker() {
     }
   }, [auth, user, isUserLoading]);
 
-  // Kakao Map Load
+  // Kakao Map Load using the provided pattern
   useEffect(() => {
     if (isClickModalOpen && selectedSchool && mapContainerRef.current) {
-      const timer = setTimeout(() => {
+      const renderMap = () => {
         if (!window.kakao || !window.kakao.maps) return;
+        
         window.kakao.maps.load(() => {
           const geocoder = new window.kakao.maps.services.Geocoder();
           geocoder.addressSearch(selectedSchool.ORG_RDNMA, (result: any, status: any) => {
             if (status === window.kakao.maps.services.Status.OK && mapContainerRef.current) {
               const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x);
-              const map = new window.kakao.maps.Map(mapContainerRef.current, { center: coords, level: 3 });
-              new window.kakao.maps.Marker({ map, position: coords });
+              
+              // Map options inspired by user's snippet
+              const options = {
+                center: coords,
+                level: 3
+              };
+
+              const map = new window.kakao.maps.Map(mapContainerRef.current, options);
+              
+              // Add Marker
+              new window.kakao.maps.Marker({
+                map: map,
+                position: coords
+              });
+
+              // Relayout map in case container size changed during load
+              setTimeout(() => {
+                map.relayout();
+                map.setCenter(coords);
+              }, 100);
             }
           });
         });
-      }, 500);
+      };
+
+      const timer = setTimeout(renderMap, 600);
       return () => clearTimeout(timer);
     }
   }, [isClickModalOpen, selectedSchool]);
@@ -183,7 +203,6 @@ export function SchoolClicker() {
     const now = Date.now();
     if (now - lastClickTimeRef.current < 1000) {
       clickCountInSecondRef.current += 1;
-      // 1초에 15회 이상 클릭 시 매크로 의심 모달 띄움
       if (clickCountInSecondRef.current > 15) {
         setIsCoolingDown(true);
         setIsAntiBotOpen(true);
@@ -217,7 +236,6 @@ export function SchoolClicker() {
       }, { merge: true }).catch(() => {});
     };
 
-    // reCAPTCHA execution with safety check
     if (window.grecaptcha && typeof window.grecaptcha.ready === 'function') {
       window.grecaptcha.ready(() => {
         window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
@@ -248,7 +266,7 @@ export function SchoolClicker() {
       toast({
         variant: "destructive",
         title: "공유 실패",
-        description: "카카오 SDK가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.",
+        description: "카카오 SDK가 준비 중입니다. 잠시 후 시도해주세요.",
       });
       return;
     }
@@ -282,11 +300,6 @@ export function SchoolClicker() {
       });
     } catch (e) {
       console.error("Kakao Share Error:", e);
-      toast({
-        variant: "destructive",
-        title: "공유 오류",
-        description: "카카오톡 공유 중 문제가 발생했습니다.",
-      });
     }
   };
 
@@ -487,7 +500,8 @@ export function SchoolClicker() {
                     <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> 학교 위치
                     </div>
-                    <div ref={mapContainerRef} className="w-full h-40 rounded-2xl bg-secondary/30 border border-border/30 overflow-hidden" />
+                    {/* Size optimized Kakao Map Container */}
+                    <div ref={mapContainerRef} className="w-full h-[250px] rounded-2xl bg-secondary/30 border border-border/30 overflow-hidden shadow-inner" />
                   </div>
 
                   <div className="grid grid-cols-2 gap-2.5">
