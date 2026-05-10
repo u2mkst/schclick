@@ -34,6 +34,10 @@ export default function RootLayout({
           src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.0/kakao.min.js"
           strategy="afterInteractive"
         />
+        <Script
+          src="https://www.google.com/recaptcha/api.js?render=6LfWA-MsAAAAAHkBN0O36eVYQEUSWQOXzF0xz-k2"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

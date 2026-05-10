@@ -32,8 +32,11 @@ declare global {
   interface Window {
     kakao: any;
     Kakao: any;
+    grecaptcha: any;
   }
 }
+
+const RECAPTCHA_SITE_KEY = "6LfWA-MsAAAAAHkBN0O36eVYQEUSWQOXzF0xz-k2";
 
 export function SchoolClicker() {
   const db = useFirestore();
@@ -203,34 +206,52 @@ export function SchoolClicker() {
 
   const handleButtonClick = () => {
     if (!selectedSchool || !db) return;
-    
-    const newLocal = localClicks + 1;
-    const newTotal = myTotalClicks + 1;
-    setLocalClicks(newLocal);
-    setMyTotalClicks(newTotal);
-    localStorage.setItem("myTotalClicks", newTotal.toString());
 
-    const schoolRef = doc(db, "schools", selectedSchool.SD_SCHUL_CODE);
-    setDoc(schoolRef, {
-      id: selectedSchool.SD_SCHUL_CODE,
-      name: selectedSchool.SCHUL_NM,
-      cityProvinceName: selectedSchool.ATPT_OFCDC_SC_NM,
-      schoolKind: selectedSchool.SCHUL_KND_SC_NM,
-      address: selectedSchool.ORG_RDNMA,
-      phone: selectedSchool.ORG_TELNO,
-      website: selectedSchool.HMPG_ADRES,
-      founded: selectedSchool.FOND_YMD,
-      score: increment(1),
-      updatedAt: serverTimestamp()
-    }, { merge: true })
-    .catch(async () => {
-      const permissionError = new FirestorePermissionError({
-        path: schoolRef.path,
-        operation: 'write',
-        requestResourceData: { score: '+1' },
+    const executeClick = () => {
+      const newLocal = localClicks + 1;
+      const newTotal = myTotalClicks + 1;
+      setLocalClicks(newLocal);
+      setMyTotalClicks(newTotal);
+      localStorage.setItem("myTotalClicks", newTotal.toString());
+
+      const schoolRef = doc(db, "schools", selectedSchool.SD_SCHUL_CODE);
+      setDoc(schoolRef, {
+        id: selectedSchool.SD_SCHUL_CODE,
+        name: selectedSchool.SCHUL_NM,
+        cityProvinceName: selectedSchool.ATPT_OFCDC_SC_NM,
+        schoolKind: selectedSchool.SCHUL_KND_SC_NM,
+        address: selectedSchool.ORG_RDNMA,
+        phone: selectedSchool.ORG_TELNO,
+        website: selectedSchool.HMPG_ADRES,
+        founded: selectedSchool.FOND_YMD,
+        score: increment(1),
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+      .catch(async () => {
+        const permissionError = new FirestorePermissionError({
+          path: schoolRef.path,
+          operation: 'write',
+          requestResourceData: { score: '+1' },
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-      errorEmitter.emit('permission-error', permissionError);
-    });
+    };
+
+    // reCAPTCHA v3 Execution
+    if (window.grecaptcha) {
+      window.grecaptcha.ready(() => {
+        window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
+          .then((token: string) => {
+            if (token) {
+              executeClick();
+            } else {
+              toast({ variant: "destructive", title: "보안 검증 실패", description: "정상적인 접근이 아닙니다." });
+            }
+          });
+      });
+    } else {
+      executeClick();
+    }
   };
 
   const handleKakaoShare = () => {
