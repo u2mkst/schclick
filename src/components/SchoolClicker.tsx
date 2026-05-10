@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -7,10 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Search, Trophy, Loader2, MapPin, 
-  Phone, Link as LinkIcon, Calendar, GraduationCap, 
-  Moon, Sun, Settings, RotateCcw, X, AlertCircle,
-  MousePointer2, Globe, BadgeInfo, LogOut, Key, Trash2,
-  Share2, ShieldAlert
+  Phone, Link as LinkIcon, GraduationCap, 
+  Moon, Sun, Settings, MousePointer2, Globe, 
+  BadgeInfo, LogOut, Key, Share2, ShieldAlert
 } from "lucide-react";
 import {
   Dialog,
@@ -24,8 +24,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFirestore, useCollection, useAuth, useMemoFirebase, useUser } from "@/firebase";
 import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch } from "firebase/firestore";
 import { signInAnonymously, signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -72,6 +70,7 @@ export function SchoolClicker() {
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
+  // Theme & Local Data Initialization
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     const themeIsDark = savedTheme === "dark";
@@ -85,23 +84,35 @@ export function SchoolClicker() {
       setMyTotalClicks(parseInt(savedClicks, 10));
     }
 
+    // Kakao SDK Initialization with better timing
     const initKakao = () => {
       if (window.Kakao && !window.Kakao.isInitialized()) {
         try {
           window.Kakao.init(KAKAO_KEY);
-        } catch (e) {}
+        } catch (e) {
+          console.error("Kakao Init Error:", e);
+        }
       }
     };
-    const timer = setTimeout(initKakao, 1500);
-    return () => clearTimeout(timer);
+
+    const interval = setInterval(() => {
+      if (window.Kakao) {
+        initKakao();
+        clearInterval(interval);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
   }, []);
 
+  // Anonymous Auth
   useEffect(() => {
     if (auth && !isUserLoading && !user) {
       signInAnonymously(auth).catch(() => {});
     }
   }, [auth, user, isUserLoading]);
 
+  // Kakao Map Load
   useEffect(() => {
     if (isClickModalOpen && selectedSchool && mapContainerRef.current) {
       const timer = setTimeout(() => {
@@ -131,11 +142,6 @@ export function SchoolClicker() {
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const allManagedSchools = useMemo(() => rankingsData || [], [rankingsData]);
   const rankings = useMemo(() => allManagedSchools.slice(0, 10), [allManagedSchools]);
-
-  const filteredAdminSchools = useMemo(() => {
-    if (!adminSearchQuery) return allManagedSchools.slice(0, 20);
-    return allManagedSchools.filter(s => s.name.includes(adminSearchQuery));
-  }, [allManagedSchools, adminSearchQuery]);
 
   const globalTotalClicks = useMemo(() => rankings.reduce((acc: number, s: any) => acc + (s.score || 0), 0), [rankings]);
   const currentSchoolServerData = useMemo(() => selectedSchool ? allManagedSchools.find((r: any) => r.id === selectedSchool.SD_SCHUL_CODE) : null, [allManagedSchools, selectedSchool]);
@@ -177,6 +183,7 @@ export function SchoolClicker() {
     const now = Date.now();
     if (now - lastClickTimeRef.current < 1000) {
       clickCountInSecondRef.current += 1;
+      // 1초에 15회 이상 클릭 시 매크로 의심 모달 띄움
       if (clickCountInSecondRef.current > 15) {
         setIsCoolingDown(true);
         setIsAntiBotOpen(true);
@@ -210,9 +217,15 @@ export function SchoolClicker() {
       }, { merge: true }).catch(() => {});
     };
 
-    if (window.grecaptcha) {
+    // reCAPTCHA execution with safety check
+    if (window.grecaptcha && typeof window.grecaptcha.ready === 'function') {
       window.grecaptcha.ready(() => {
-        window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' }).then(executeClick).catch(executeClick);
+        window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
+          .then(executeClick)
+          .catch((err: any) => {
+            console.warn("reCAPTCHA failed, but proceeding click:", err);
+            executeClick();
+          });
       });
     } else {
       executeClick();
@@ -221,27 +234,60 @@ export function SchoolClicker() {
 
   const handleAntiBotConfirm = () => {
     setIsAntiBotOpen(false);
-    setIsCoolingDown(true);
-    setTimeout(() => {
-      setIsCoolingDown(false);
-      clickCountInSecondRef.current = 0;
-    }, 1500);
+    setIsCoolingDown(false);
+    clickCountInSecondRef.current = 0;
+    lastClickTimeRef.current = Date.now();
+    toast({
+      title: "인증 완료",
+      description: "다시 클릭할 수 있습니다.",
+    });
   };
 
   const handleKakaoShare = () => {
-    if (!window.Kakao || !selectedSchool) return;
+    if (!window.Kakao || !window.Kakao.isInitialized()) {
+      toast({
+        variant: "destructive",
+        title: "공유 실패",
+        description: "카카오 SDK가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.",
+      });
+      return;
+    }
+
+    if (!selectedSchool) return;
+
     const score = currentSchoolServerData?.score || 0;
-    const rankText = currentRank ? `전국 ${currentRank}위!` : '지금 바로 응원하세요!';
-    window.Kakao.Share.sendDefault({
-      objectType: 'feed',
-      content: {
-        title: `SCHOOL CLICK: ${selectedSchool.SCHUL_NM}`,
-        description: `누적 점수: ${score.toLocaleString()}점 | ${rankText}`,
-        imageUrl: 'https://picsum.photos/seed/school_cap/600/300',
-        link: { mobileWebUrl: window.location.origin, webUrl: window.location.origin },
-      },
-      buttons: [{ title: '응원하러 가기', link: { mobileWebUrl: window.location.origin, webUrl: window.location.origin } }],
-    });
+    const rankText = currentRank ? `전국 실시간 ${currentRank}위!` : '지금 바로 응원하세요!';
+    
+    try {
+      window.Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: {
+          title: `SCHOOL CLICK: ${selectedSchool.SCHUL_NM}`,
+          description: `누적 점수: ${score.toLocaleString()}점 | ${rankText}`,
+          imageUrl: 'https://picsum.photos/seed/school_cap/600/315',
+          link: { 
+            mobileWebUrl: window.location.origin, 
+            webUrl: window.location.origin 
+          },
+        },
+        buttons: [
+          { 
+            title: '응원하러 가기', 
+            link: { 
+              mobileWebUrl: window.location.origin, 
+              webUrl: window.location.origin 
+            } 
+          }
+        ],
+      });
+    } catch (e) {
+      console.error("Kakao Share Error:", e);
+      toast({
+        variant: "destructive",
+        title: "공유 오류",
+        description: "카카오톡 공유 중 문제가 발생했습니다.",
+      });
+    }
   };
 
   return (
@@ -250,7 +296,7 @@ export function SchoolClicker() {
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <GraduationCap className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-bold tracking-tight">SCHOOL CLICK</h1>
+            <h1 className="text-xl font-bold tracking-tight headline">SCHOOL CLICK</h1>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
@@ -279,7 +325,7 @@ export function SchoolClicker() {
 
         <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden border">
           <CardHeader className="py-4 px-6 border-b bg-secondary/10">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <CardTitle className="text-sm font-bold flex items-center gap-2 headline">
               <Trophy className="h-4 w-4 text-primary" /> 실시간 명예의 전당 (TOP 10)
             </CardTitle>
           </CardHeader>
@@ -305,7 +351,7 @@ export function SchoolClicker() {
                   >
                     <div className="flex items-center gap-4">
                       <span className={cn(
-                        "w-6 text-center text-sm font-black",
+                        "w-6 text-center text-sm font-black tabular-nums",
                         idx === 0 ? "text-yellow-500 text-lg" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-amber-600" : "text-muted-foreground/40"
                       )}>
                         {idx + 1}
@@ -353,14 +399,15 @@ export function SchoolClicker() {
           onClick={() => isAdmin ? setIsAdminDialogOpen(true) : setIsLoginDialogOpen(true)}
           className="text-[10px] font-bold text-muted-foreground tracking-widest opacity-30 hover:opacity-100 transition-opacity"
         >
-          ©2026 KST
+          ©2026 SCHOOL CLICK
         </button>
       </footer>
 
+      {/* Search Dialog */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="flex items-center gap-2 text-primary">
+            <DialogTitle className="flex items-center gap-2 text-primary headline">
               <GraduationCap className="h-5 w-5" /> 학교 검색
             </DialogTitle>
           </DialogHeader>
@@ -402,6 +449,7 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
+      {/* Click Dialog */}
       <Dialog open={isClickModalOpen} onOpenChange={setIsClickModalOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-card">
           {selectedSchool && (
@@ -411,7 +459,7 @@ export function SchoolClicker() {
                    <GraduationCap className="h-3 w-3" />
                   {currentRank ? `전국 실시간 ${currentRank}위` : '순위 진입 중...'}
                 </div>
-                <DialogTitle className="text-2xl font-black tracking-tighter">{selectedSchool.SCHUL_NM}</DialogTitle>
+                <DialogTitle className="text-2xl font-black tracking-tighter headline">{selectedSchool.SCHUL_NM}</DialogTitle>
                 <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs">
                   <MapPin className="h-3.5 w-3.5" /> {selectedSchool.ATPT_OFCDC_SC_NM}
                   <span className="mx-1">•</span>
@@ -429,7 +477,7 @@ export function SchoolClicker() {
 
                 <Button
                   onClick={handleButtonClick}
-                  className="w-full h-24 text-3xl font-black rounded-[2rem] shadow-xl transition-all active:scale-[0.96] bg-primary text-primary-foreground"
+                  className="w-full h-24 text-4xl font-black rounded-[2rem] shadow-xl transition-all active:scale-[0.96] bg-primary text-primary-foreground headline"
                 >
                   CLICK!
                 </Button>
@@ -452,7 +500,7 @@ export function SchoolClicker() {
                   <Button variant="outline" className="flex-1 rounded-2xl h-12 font-bold border-2" onClick={handleKakaoShare}>
                     <Share2 className="h-4 w-4 mr-2" /> 카톡 공유
                   </Button>
-                  <Button variant="ghost" className="px-4 rounded-2xl h-12 opacity-40" onClick={() => setIsClickModalOpen(false)}>닫기</Button>
+                  <Button variant="ghost" className="px-4 rounded-2xl h-12 opacity-40 font-bold" onClick={() => setIsClickModalOpen(false)}>닫기</Button>
                 </div>
               </div>
             </div>
@@ -460,13 +508,14 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isAntiBotOpen} onOpenChange={(open) => { if(!open) handleAntiBotConfirm(); }}>
+      {/* Anti-Bot Modal */}
+      <Dialog open={isAntiBotOpen} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl bg-card p-8 text-center">
           <DialogHeader>
             <div className="mx-auto p-4 bg-primary/10 rounded-full w-fit mb-4">
               <ShieldAlert className="h-10 w-10 text-primary animate-pulse" />
             </div>
-            <DialogTitle className="text-2xl font-black tracking-tight">잠시 대기!</DialogTitle>
+            <DialogTitle className="text-2xl font-black tracking-tight headline">잠시 대기!</DialogTitle>
             <DialogDescription className="text-base font-bold text-foreground/80 pt-2">
               비정상적으로 빠른 클릭이 감지되었습니다.<br />
               혹시 <span className="text-primary underline underline-offset-4">로봇이 아닙니까?</span>
@@ -475,7 +524,7 @@ export function SchoolClicker() {
           <DialogFooter className="mt-8">
             <Button 
               onClick={handleAntiBotConfirm} 
-              className="w-full h-14 rounded-2xl text-lg font-black"
+              className="w-full h-14 rounded-2xl text-lg font-black headline"
             >
               로봇이 아닙니다
             </Button>
@@ -483,9 +532,10 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
+      {/* Admin Login Dialog */}
       <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
         <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl bg-card">
-          <DialogHeader><DialogTitle className="flex items-center gap-2 text-primary"><Key className="h-5 w-5" /> 관리자 로그인</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="flex items-center gap-2 text-primary headline"><Key className="h-5 w-5" /> 관리자 로그인</DialogTitle></DialogHeader>
           <form onSubmit={(e) => {
             e.preventDefault();
             setIsLoggingIn(true);
@@ -503,38 +553,47 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
+      {/* Admin Control Dialog */}
       <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 bg-primary/10 flex flex-row items-center justify-between">
-            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-primary"><Settings className="h-5 w-5" /> 관리자 센터</DialogTitle>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2 text-primary headline"><Settings className="h-5 w-5" /> 관리자 센터</DialogTitle>
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="destructive" className="h-8 text-[10px]" onClick={async () => {
-                if(!confirm("전체 초기화하시겠습니까?")) return;
+              <Button size="sm" variant="destructive" className="h-8 text-[10px] font-bold" onClick={async () => {
+                if(!confirm("모든 학교의 점수를 초기화하시겠습니까?")) return;
                 setIsResettingAll(true);
-                const snap = await getDocs(collection(db!, "schools"));
-                const batch = writeBatch(db!);
-                snap.forEach(d => batch.update(d.ref, { score: 0 }));
-                await batch.commit();
-                setIsResettingAll(false);
-              }} disabled={isResettingAll}>{isResettingAll ? "초기화 중" : "전체 초기화"}</Button>
+                try {
+                  const snap = await getDocs(collection(db!, "schools"));
+                  const batch = writeBatch(db!);
+                  snap.forEach(d => batch.update(d.ref, { score: 0 }));
+                  await batch.commit();
+                  toast({ title: "초기화 완료", description: "모든 점수가 0으로 설정되었습니다." });
+                } catch (e) {
+                  toast({ variant: "destructive", title: "초기화 실패" });
+                } finally {
+                  setIsResettingAll(false);
+                }
+              }} disabled={isResettingAll}>{isResettingAll ? "중..." : "전체 초기화"}</Button>
               <Button variant="ghost" size="sm" onClick={() => { signOut(auth!); setIsAdminDialogOpen(false); }} className="text-destructive"><LogOut className="h-4 w-4" /></Button>
             </div>
           </DialogHeader>
           <div className="p-4 bg-secondary/5 border-b">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="학교 검색" value={adminSearchQuery} onChange={(e) => setAdminSearchQuery(e.target.value)} className="pl-9" />
+              <Input placeholder="등록된 학교 검색" value={adminSearchQuery} onChange={(e) => setAdminSearchQuery(e.target.value)} className="pl-9" />
             </div>
           </div>
           <ScrollArea className="h-[400px]">
             <div className="divide-y">
-              {filteredAdminSchools.map((school: any) => (
+              {allManagedSchools
+                .filter(s => s.name.includes(adminSearchQuery))
+                .map((school: any) => (
                 <div key={school.id} className="flex items-center justify-between p-4 px-6">
                   <div className="flex flex-col">
                     <span className="text-sm font-bold">{school.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{school.score} clicks</span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums">{school.score.toLocaleString()} clicks</span>
                   </div>
-                  <Button size="sm" variant="outline" className="h-8 text-destructive" onClick={() => setDoc(doc(db!, "schools", school.id), { score: 0 }, { merge: true })}>리셋</Button>
+                  <Button size="sm" variant="outline" className="h-8 text-destructive font-bold" onClick={() => setDoc(doc(db!, "schools", school.id), { score: 0 }, { merge: true })}>리셋</Button>
                 </div>
               ))}
             </div>
@@ -546,7 +605,7 @@ export function SchoolClicker() {
 }
 
 function InfoItem({ icon, label, value, isLink }: { icon: any, label: string, value: string, isLink?: boolean }) {
-  if (!value || value === "정보 없음" || value === " ") return null;
+  if (!value || value === "정보 없음" || value === " " || value === "null") return null;
   const linkHref = value.startsWith('http') ? value : `http://${value}`;
   return (
     <div className="p-3 bg-secondary/30 rounded-2xl space-y-1 text-left overflow-hidden border border-transparent">
