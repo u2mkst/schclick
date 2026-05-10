@@ -18,16 +18,9 @@ rules_version = '2';
  * Key Security Decisions:
  * 1. Public Read Access: All school documents and the ability to list them are 
  *    publicly available (if true) to support national leaderboards and public school profiles.
- * 2. Authenticated Updates: Any authenticated user (including anonymous users) can 
- *    update school documents to increment scores, supporting the core "Click" mechanic.
- * 3. Restricted Management: Operations like 'create' and 'delete' are restricted 
- *    as the school list is intended to be managed by system administrators or 
- *    external API synchronizations (e.g., NEIS).
- * 
- * Denormalization for Authorization:
- * Each school document includes its own 'id' field which must match the document ID. 
- * This ensures that relational integrity is maintained without needing to query 
- * other collections.
+ * 2. Authenticated Writes: Any authenticated user (including anonymous users) can 
+ *    create or update school documents to increment scores, supporting the core "Click" mechanic.
+ * 3. Restricted Deletion: Operations like 'delete' are restricted to prevent collection destruction.
  */
 
 service cloud.firestore {
@@ -41,28 +34,17 @@ service cloud.firestore {
     }
 
     /**
-     * @description Verifies if a document exists before performing state-changing operations.
-     */
-    function exists(resource) {
-      return resource != null;
-    }
-
-    /**
      * @description Rules for the 'schools' collection.
      * @path /schools/{schoolId}
      * @allow (get, list) for any user (public leaderboard).
-     * @allow (update) for any signed-in user to increment scores.
-     * @deny (create, delete) to prevent unauthorized collection modification.
-     * @principle Public consumption with authenticated state-change permissions.
+     * @allow (create, update) for any signed-in user to register schools and increment scores.
+     * @deny (delete) to prevent unauthorized collection modification.
      */
     match /schools/{schoolId} {
       allow get, list: if true;
       
-      // CRITICAL: Cannot implement owner-only writes. The 'School' entity is missing 
-      // an 'ownerId' or 'authorId' field. By application design, any user can increment scores.
-      allow create: if false; // TODO: Add owner validation if school creation is moved to the client.
-      
-      allow update: if isSignedIn() && exists(resource);
+      // 사용자가 클릭 시 학교 정보를 서버에 처음 등록(create)하거나 점수를 수정(update)할 수 있어야 합니다.
+      allow create, update: if isSignedIn();
       
       allow delete: if false;
     }
