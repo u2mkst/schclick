@@ -99,7 +99,6 @@ export function SchoolClicker() {
   };
 
   const selectSchoolFromRanking = (rankData: any) => {
-    // Transform ranking data back to School type for consistency
     const school: School = {
       SD_SCHUL_CODE: rankData.id,
       SCHUL_NM: rankData.name,
@@ -154,6 +153,19 @@ export function SchoolClicker() {
     });
   };
 
+  const toggleAdminMode = () => {
+    if (isAdminMode) {
+      setIsAdminMode(false);
+      return;
+    }
+    const password = prompt("관리자 비밀번호를 입력하세요:");
+    if (password === "kst12345") {
+      setIsAdminMode(true);
+    } else if (password !== null) {
+      alert("비밀번호가 올바르지 않습니다.");
+    }
+  };
+
   return (
     <div className="w-full min-h-screen flex flex-col bg-background text-foreground">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
@@ -171,7 +183,6 @@ export function SchoolClicker() {
       </header>
 
       <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-6 space-y-6">
-        {/* Search Trigger */}
         <section>
           <Button 
             variant="outline" 
@@ -183,7 +194,6 @@ export function SchoolClicker() {
           </Button>
         </section>
 
-        {/* Global Ranking Card */}
         <Card className="border-none shadow-none bg-secondary/20 rounded-2xl overflow-hidden">
           <CardHeader className="py-4 px-6">
             <CardTitle className="text-base font-bold flex items-center gap-2">
@@ -225,7 +235,6 @@ export function SchoolClicker() {
           </CardContent>
         </Card>
 
-        {/* Admin Section (Optional toggle) */}
         {isAdminMode && (
           <Card className="border-2 border-primary/20 bg-primary/5 rounded-2xl overflow-hidden mt-8">
             <CardHeader className="py-4 px-6 bg-primary/10">
@@ -254,14 +263,13 @@ export function SchoolClicker() {
         )}
       </main>
 
-      {/* Footer */}
       <footer className="w-full py-10 text-center border-t mt-12 bg-secondary/10">
         <div className="flex flex-col items-center gap-4">
           <Button 
             variant="ghost" 
             size="sm" 
-            className="text-[10px] opacity-30 hover:opacity-100"
-            onClick={() => setIsAdminMode(!isAdminMode)}
+            className="text-[10px] opacity-30 hover:opacity-100 h-6 px-2"
+            onClick={toggleAdminMode}
           >
             {isAdminMode ? "ADMIN OFF" : "ADMIN ON"}
           </Button>
@@ -269,7 +277,6 @@ export function SchoolClicker() {
         </div>
       </footer>
 
-      {/* Search Dialog */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
           <DialogHeader className="p-6 pb-0">
@@ -315,7 +322,6 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
-      {/* Click Modal (Main Game) */}
       <Dialog open={isClickModalOpen} onOpenChange={setIsClickModalOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
           {selectedSchool && (
@@ -406,4 +412,3 @@ function formatDate(dateStr: string) {
   if (!dateStr || dateStr.length !== 8) return "";
   return `${dateStr.substring(0, 4)}.${dateStr.substring(4, 6)}.${dateStr.substring(6, 8)}`;
 }
-
