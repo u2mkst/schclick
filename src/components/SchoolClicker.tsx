@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { searchSchools, type School } from "@/lib/neis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,8 @@ import {
   Search, Trophy, Loader2, MapPin, 
   Phone, Link as LinkIcon, Calendar, GraduationCap, 
   Moon, Sun, Settings, RotateCcw, X, AlertCircle,
-  MousePointer2, Globe, BadgeInfo, LogOut, Key, Trash2
+  MousePointer2, Globe, BadgeInfo, LogOut, Key, Trash2,
+  Share2
 } from "lucide-react";
 import {
   Dialog,
@@ -26,6 +27,13 @@ import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+
+declare global {
+  interface Window {
+    kakao: any;
+    Kakao: any;
+  }
+}
 
 export function SchoolClicker() {
   const db = useFirestore();
@@ -51,6 +59,9 @@ export function SchoolClicker() {
   const [adminSearchQuery, setAdminSearchQuery] = useState("");
   const [isResettingAll, setIsResettingAll] = useState(false);
 
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  // Initialize Theme and Local Clicks
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     const themeIsDark = savedTheme === "dark";
@@ -65,13 +76,49 @@ export function SchoolClicker() {
     if (savedClicks) {
       setMyTotalClicks(parseInt(savedClicks, 10));
     }
+
+    // Initialize Kakao SDK
+    if (window.Kakao && !window.Kakao.isInitialized()) {
+      window.Kakao.init('619a98fc6bc8426aa8804d86591c7a6c');
+    }
   }, []);
 
+  // Anonymous Sign-in
   useEffect(() => {
     if (auth && !isUserLoading && !user) {
       signInAnonymously(auth).catch(() => {});
     }
   }, [auth, user, isUserLoading]);
+
+  // Kakao Map Rendering
+  useEffect(() => {
+    if (isClickModalOpen && selectedSchool && mapContainerRef.current) {
+      const loadMap = () => {
+        window.kakao.maps.load(() => {
+          const geocoder = new window.kakao.maps.services.Geocoder();
+          geocoder.addressSearch(selectedSchool.ORG_RDNMA, (result: any, status: any) => {
+            if (status === window.kakao.maps.services.Status.OK) {
+              const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x);
+              const options = {
+                center: coords,
+                level: 3
+              };
+              const map = new window.kakao.maps.Map(mapContainerRef.current, options);
+              const marker = new window.kakao.maps.Marker({
+                map: map,
+                position: coords
+              });
+              map.setCenter(coords);
+            }
+          });
+        });
+      };
+
+      if (window.kakao && window.kakao.maps) {
+        loadMap();
+      }
+    }
+  }, [isClickModalOpen, selectedSchool]);
 
   const isAdmin = useMemo(() => {
     return user && !user.isAnonymous;
@@ -87,9 +134,10 @@ export function SchoolClicker() {
   const rankings = useMemo(() => allManagedSchools.slice(0, 10), [allManagedSchools]);
 
   const filteredAdminSchools = useMemo(() => {
-    if (!adminSearchQuery) return rankings;
-    return allManagedSchools.filter(s => s.name.includes(adminSearchQuery));
-  }, [allManagedSchools, rankings, adminSearchQuery]);
+    const list = allManagedSchools;
+    if (!adminSearchQuery) return list.slice(0, 10);
+    return list.filter(s => s.name.includes(adminSearchQuery));
+  }, [allManagedSchools, adminSearchQuery]);
 
   const globalTotalClicks = useMemo(() => {
     return rankings.reduce((acc: number, school: any) => acc + (school.score || 0), 0);
@@ -182,6 +230,35 @@ export function SchoolClicker() {
         requestResourceData: { score: '+1' },
       });
       errorEmitter.emit('permission-error', permissionError);
+    });
+  };
+
+  const handleKakaoShare = () => {
+    if (!selectedSchool || !window.Kakao) return;
+    
+    const score = currentSchoolServerData?.score || 0;
+    const rankText = currentRank ? `현재 실시간 ${currentRank}위!` : '지금 바로 응원하세요!';
+
+    window.Kakao.Share.sendDefault({
+      objectType: 'feed',
+      content: {
+        title: selectedSchool.SCHUL_NM,
+        description: `누적 점수: ${score.toLocaleString()}점 | ${rankText}`,
+        imageUrl: 'https://picsum.photos/seed/school/600/300',
+        link: {
+          mobileWebUrl: window.location.href,
+          webUrl: window.location.href,
+        },
+      },
+      buttons: [
+        {
+          title: '응원하러 가기',
+          link: {
+            mobileWebUrl: window.location.href,
+            webUrl: window.location.href,
+          },
+        },
+      ],
     });
   };
 
@@ -419,7 +496,7 @@ export function SchoolClicker() {
       <Dialog open={isClickModalOpen} onOpenChange={setIsClickModalOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
           {selectedSchool && (
-            <div className="flex flex-col">
+            <div className="flex flex-col max-h-[90vh] overflow-y-auto">
               <div className="p-8 pb-4 text-center space-y-2">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest">
                   {currentRank ? <Trophy className="h-3 w-3" /> : <Loader2 className="h-3 w-3 animate-spin" />}
@@ -435,7 +512,7 @@ export function SchoolClicker() {
                 </div>
               </div>
 
-              <div className="px-8 py-6 text-center space-y-6">
+              <div className="px-8 py-4 text-center space-y-6">
                 <div className="space-y-1">
                   <div className="text-xs font-bold text-muted-foreground uppercase tracking-widest opacity-60">총 누적 점수</div>
                   <div className="text-5xl font-black text-primary tabular-nums tracking-tighter drop-shadow-sm">
@@ -458,24 +535,40 @@ export function SchoolClicker() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5 pt-2">
-                  <InfoItem 
-                    icon={<MapPin className="h-3 w-3" />} 
-                    label="주소" 
-                    value={selectedSchool.ORG_RDNMA} 
-                    isLink 
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedSchool.SCHUL_NM + ' ' + selectedSchool.ORG_RDNMA)}`}
-                  />
-                  <InfoItem icon={<Phone className="h-3 w-3" />} label="전화" value={selectedSchool.ORG_TELNO} />
-                  <InfoItem icon={<LinkIcon className="h-3 w-3" />} label="웹사이트" value={selectedSchool.HMPG_ADRES} isLink />
-                  <InfoItem icon={<Calendar className="h-3 w-3" />} label="설립일" value={formatDate(selectedSchool.FOND_YMD)} />
+                <div className="space-y-4">
+                  <div className="text-left space-y-2">
+                    <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest flex items-center gap-1">
+                      <MapPin className="h-3 w-3" /> 학교 위치 (카카오맵)
+                    </div>
+                    <div 
+                      ref={mapContainerRef} 
+                      className="w-full h-40 rounded-2xl bg-secondary/30 overflow-hidden border border-border/20 shadow-inner"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <InfoItem icon={<Phone className="h-3 w-3" />} label="전화" value={selectedSchool.ORG_TELNO} />
+                    <InfoItem icon={<LinkIcon className="h-3 w-3" />} label="웹사이트" value={selectedSchool.HMPG_ADRES} isLink />
+                    <InfoItem icon={<Calendar className="h-3 w-3" />} label="설립일" value={formatDate(selectedSchool.FOND_YMD)} />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="p-4 bg-secondary/20 flex justify-center">
-                <Button variant="ghost" size="sm" onClick={() => setIsClickModalOpen(false)} className="rounded-full text-xs font-bold opacity-40 hover:opacity-100">
-                  <X className="h-3.5 w-3.5 mr-1" /> 모달 닫기
-                </Button>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 rounded-2xl h-12 font-bold border-2 hover:bg-secondary/50"
+                    onClick={handleKakaoShare}
+                  >
+                    <Share2 className="h-4 w-4 mr-2" /> 카톡 공유
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    className="px-4 rounded-2xl h-12 opacity-40 hover:opacity-100"
+                    onClick={() => setIsClickModalOpen(false)}
+                  >
+                    닫기
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -545,7 +638,7 @@ export function SchoolClicker() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="학교 검색 (Top 100 내)" 
+                placeholder="학교 검색" 
                 value={adminSearchQuery}
                 onChange={(e) => setAdminSearchQuery(e.target.value)}
                 className="pl-9 h-10 rounded-xl"
@@ -604,7 +697,7 @@ function InfoItem({ icon, label, value, isLink, href }: { icon: any, label: stri
       <div className="text-[10px] font-bold truncate">
         {isLink ? (
           <a href={linkHref} target="_blank" rel="noreferrer" className="text-primary hover:underline block truncate">
-            {href ? "지도 보기" : "사이트 방문"}
+            사이트 방문
           </a>
         ) : value}
       </div>

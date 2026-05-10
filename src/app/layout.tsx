@@ -3,6 +3,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'SCHOOL CLICK - 우리 학교를 1위로!',
@@ -25,6 +26,14 @@ export default function RootLayout({
         {children}
         <FirebaseErrorListener />
         <Toaster />
+        <Script
+          src="//dapi.kakao.com/v2/maps/sdk.js?appkey=619a98fc6bc8426aa8804d86591c7a6c&libraries=services&autoload=false"
+          strategy="beforeInteractive"
+        />
+        <Script
+          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.0/kakao.min.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
