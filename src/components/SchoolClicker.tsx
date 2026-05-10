@@ -2,15 +2,15 @@
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
-import { searchSchools, type School } from "@/lib/neis";
+import { searchSchools, getSchoolMeal, type School } from "@/lib/neis";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Search, Trophy, Loader2, MapPin, 
-  Phone, Link as LinkIcon, GraduationCap, 
-  Moon, Sun, Settings, MousePointer2, Globe, 
-  BadgeInfo, LogOut, Key, Share2, ShieldAlert
+  GraduationCap, Moon, Sun, Settings, 
+  MousePointer2, Globe, BadgeInfo, LogOut, 
+  Key, Share2, ShieldAlert, UtensilsCrossed
 } from "lucide-react";
 import {
   Dialog,
@@ -45,6 +45,9 @@ export function SchoolClicker() {
   const { toast } = useToast();
   
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
+  const [mealInfo, setMealInfo] = useState<string>("불러오는 중...");
+  const [isMealLoading, setIsMealLoading] = useState(false);
+  
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState<School[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -108,6 +111,22 @@ export function SchoolClicker() {
       signInAnonymously(auth).catch(() => {});
     }
   }, [auth, user, isUserLoading]);
+
+  // 학교 선택 시 급식 정보 가져오기
+  useEffect(() => {
+    if (isClickModalOpen && selectedSchool) {
+      setIsMealLoading(true);
+      getSchoolMeal(selectedSchool.ATPT_OFCDC_SC_CODE, selectedSchool.SD_SCHUL_CODE)
+        .then(res => {
+          setMealInfo(res);
+          setIsMealLoading(false);
+        })
+        .catch(() => {
+          setMealInfo("정보를 불러오지 못했습니다.");
+          setIsMealLoading(false);
+        });
+    }
+  }, [isClickModalOpen, selectedSchool]);
 
   useEffect(() => {
     if (isClickModalOpen && selectedSchool && mapContainerRef.current) {
@@ -222,9 +241,6 @@ export function SchoolClicker() {
         cityProvinceName: selectedSchool.ATPT_OFCDC_SC_NM,
         schoolKind: selectedSchool.SCHUL_KND_SC_NM,
         address: selectedSchool.ORG_RDNMA,
-        phone: selectedSchool.ORG_TELNO,
-        website: selectedSchool.HMPG_ADRES,
-        founded: selectedSchool.FOND_YMD,
         score: increment(1),
         updatedAt: serverTimestamp()
       }, { merge: true }).catch(() => {});
@@ -349,10 +365,11 @@ export function SchoolClicker() {
                       SCHUL_NM: school.name,
                       ATPT_OFCDC_SC_NM: school.cityProvinceName,
                       SCHUL_KND_SC_NM: school.schoolKind,
+                      ATPT_OFCDC_SC_CODE: school.atptCode || "", // 실제 저장된 데이터 스키마에 따라 조정 필요
                       ORG_RDNMA: school.address || "",
-                      ORG_TELNO: school.phone || "",
-                      HMPG_ADRES: school.website || "",
-                      FOND_YMD: school.founded || ""
+                      ORG_TELNO: "",
+                      HMPG_ADRES: "",
+                      FOND_YMD: ""
                     })}
                     className="flex items-center justify-between p-4 px-6 hover:bg-primary/5 transition-colors cursor-pointer group"
                   >
@@ -490,17 +507,27 @@ export function SchoolClicker() {
                 </Button>
 
                 <div className="space-y-4">
+                  {/* 오늘의 급식 섹션 */}
+                  <div className="text-left space-y-2">
+                    <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
+                      <UtensilsCrossed className="h-3 w-3" /> 오늘의 급식
+                    </div>
+                    <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 min-h-[100px] flex flex-col justify-center">
+                      {isMealLoading ? (
+                        <div className="flex justify-center"><Loader2 className="animate-spin h-5 w-5 text-primary/50" /></div>
+                      ) : (
+                        <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center">
+                          {mealInfo}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="text-left space-y-2">
                     <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> 학교 위치
                     </div>
-                    {/* Size optimized Kakao Map Container based on user's standard code */}
-                    <div ref={mapContainerRef} className="w-full h-[250px] rounded-2xl bg-secondary/30 border border-border/30 overflow-hidden shadow-inner" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <InfoItem icon={<Phone className="h-3 w-3" />} label="전화" value={selectedSchool.ORG_TELNO} />
-                    <InfoItem icon={<LinkIcon className="h-3 w-3" />} label="웹사이트" value={selectedSchool.HMPG_ADRES} isLink />
+                    <div ref={mapContainerRef} className="w-full h-[200px] rounded-2xl bg-secondary/30 border border-border/30 overflow-hidden shadow-inner" />
                   </div>
                 </div>
 
@@ -608,19 +635,6 @@ export function SchoolClicker() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function InfoItem({ icon, label, value, isLink }: { icon: any, label: string, value: string, isLink?: boolean }) {
-  if (!value || value === "정보 없음" || value === " " || value === "null") return null;
-  const linkHref = value.startsWith('http') ? value : `http://${value}`;
-  return (
-    <div className="p-3 bg-secondary/30 rounded-2xl space-y-1 text-left overflow-hidden border border-transparent">
-      <div className="flex items-center gap-1.5 text-[9px] font-black text-muted-foreground uppercase tracking-wider">{icon} {label}</div>
-      <div className="text-[10px] font-bold truncate">
-        {isLink ? <a href={linkHref} target="_blank" rel="noreferrer" className="text-primary hover:underline">방문하기</a> : value}
-      </div>
     </div>
   );
 }
