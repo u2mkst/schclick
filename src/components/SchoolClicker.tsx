@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -7,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  Search, Trophy, Loader2, MapPin, 
+  Search, Trophy, Loader2, 
   GraduationCap, Moon, Sun, Settings, 
-  MousePointer2, Globe, BadgeInfo, LogOut, 
+  MousePointer2, Globe, LogOut, 
   Key, Share2, ShieldAlert, UtensilsCrossed
 } from "lucide-react";
 import {
@@ -29,7 +28,6 @@ import { useToast } from "@/hooks/use-toast";
 
 declare global {
   interface Window {
-    kakao: any;
     Kakao: any;
     grecaptcha: any;
   }
@@ -70,8 +68,6 @@ export function SchoolClicker() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [adminSearchQuery, setAdminSearchQuery] = useState("");
   const [isResettingAll, setIsResettingAll] = useState(false);
-
-  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -116,52 +112,17 @@ export function SchoolClicker() {
   useEffect(() => {
     if (isClickModalOpen && selectedSchool) {
       setIsMealLoading(true);
+      setMealInfo("불러오는 중...");
       getSchoolMeal(selectedSchool.ATPT_OFCDC_SC_CODE, selectedSchool.SD_SCHUL_CODE)
         .then(res => {
           setMealInfo(res);
-          setIsMealLoading(false);
         })
         .catch(() => {
           setMealInfo("정보를 불러오지 못했습니다.");
+        })
+        .finally(() => {
           setIsMealLoading(false);
         });
-    }
-  }, [isClickModalOpen, selectedSchool]);
-
-  useEffect(() => {
-    if (isClickModalOpen && selectedSchool && mapContainerRef.current) {
-      const renderMap = () => {
-        if (!window.kakao || !window.kakao.maps) return;
-        
-        window.kakao.maps.load(() => {
-          const geocoder = new window.kakao.maps.services.Geocoder();
-          geocoder.addressSearch(selectedSchool.ORG_RDNMA, (result: any, status: any) => {
-            if (status === window.kakao.maps.services.Status.OK && mapContainerRef.current) {
-              const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x);
-              
-              const options = {
-                center: coords,
-                level: 3
-              };
-
-              const map = new window.kakao.maps.Map(mapContainerRef.current, options);
-              
-              new window.kakao.maps.Marker({
-                map: map,
-                position: coords
-              });
-
-              setTimeout(() => {
-                map.relayout();
-                map.setCenter(coords);
-              }, 100);
-            }
-          });
-        });
-      };
-
-      const timer = setTimeout(renderMap, 600);
-      return () => clearTimeout(timer);
     }
   }, [isClickModalOpen, selectedSchool]);
 
@@ -292,7 +253,7 @@ export function SchoolClicker() {
         content: {
           title: `SCHOOL CLICK: ${selectedSchool.SCHUL_NM}`,
           description: `누적 점수: ${score.toLocaleString()}점 | ${rankText}`,
-          imageUrl: 'https://picsum.photos/seed/school_cap/600/315',
+          imageUrl: 'https://picsum.photos/seed/school/600/315',
           link: { 
             mobileWebUrl: window.location.origin, 
             webUrl: window.location.origin 
@@ -365,7 +326,7 @@ export function SchoolClicker() {
                       SCHUL_NM: school.name,
                       ATPT_OFCDC_SC_NM: school.cityProvinceName,
                       SCHUL_KND_SC_NM: school.schoolKind,
-                      ATPT_OFCDC_SC_CODE: school.atptCode || "", // 실제 저장된 데이터 스키마에 따라 조정 필요
+                      ATPT_OFCDC_SC_CODE: school.atptCode || "",
                       ORG_RDNMA: school.address || "",
                       ORG_TELNO: "",
                       HMPG_ADRES: "",
@@ -484,10 +445,8 @@ export function SchoolClicker() {
                   {currentRank ? `전국 실시간 ${currentRank}위` : '순위 진입 중...'}
                 </div>
                 <DialogTitle className="text-2xl font-black tracking-tighter headline">{selectedSchool.SCHUL_NM}</DialogTitle>
-                <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs">
-                  <MapPin className="h-3.5 w-3.5" /> {selectedSchool.ATPT_OFCDC_SC_NM}
-                  <span className="mx-1">•</span>
-                  <BadgeInfo className="h-3.5 w-3.5" /> {selectedSchool.SCHUL_KND_SC_NM}
+                <div className="text-muted-foreground text-xs">
+                  {selectedSchool.ATPT_OFCDC_SC_NM} • {selectedSchool.SCHUL_KND_SC_NM}
                 </div>
               </div>
 
@@ -512,22 +471,18 @@ export function SchoolClicker() {
                     <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
                       <UtensilsCrossed className="h-3 w-3" /> 오늘의 급식
                     </div>
-                    <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 min-h-[100px] flex flex-col justify-center">
+                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 min-h-[120px] flex flex-col justify-center">
                       {isMealLoading ? (
-                        <div className="flex justify-center"><Loader2 className="animate-spin h-5 w-5 text-primary/50" /></div>
+                        <div className="flex flex-col items-center gap-2">
+                          <Loader2 className="animate-spin h-6 w-6 text-primary/50" />
+                          <span className="text-xs text-muted-foreground font-bold">식단 정보 가져오는 중...</span>
+                        </div>
                       ) : (
                         <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center">
                           {mealInfo}
                         </p>
                       )}
                     </div>
-                  </div>
-
-                  <div className="text-left space-y-2">
-                    <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
-                      <MapPin className="h-3 w-3" /> 학교 위치
-                    </div>
-                    <div ref={mapContainerRef} className="w-full h-[200px] rounded-2xl bg-secondary/30 border border-border/30 overflow-hidden shadow-inner" />
                   </div>
                 </div>
 
