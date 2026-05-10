@@ -36,6 +36,7 @@ declare global {
 }
 
 const RECAPTCHA_SITE_KEY = "6LfWA-MsAAAAAHkBN0O36eVYQEUSWQOXzF0xz-k2";
+const KAKAO_KEY = "619a98fc6bc8426aa8804d86591c7a6c";
 
 export function SchoolClicker() {
   const db = useFirestore();
@@ -54,6 +55,11 @@ export function SchoolClicker() {
   const [localClicks, setLocalClicks] = useState(0);
   const [myTotalClicks, setMyTotalClicks] = useState(0);
   const [isDark, setIsDark] = useState(false);
+
+  // 비정상 클릭 감지용 상태
+  const [isCoolingDown, setIsCoolingDown] = useState(false);
+  const lastClickTimeRef = useRef<number>(0);
+  const clickCountInSecondRef = useRef<number>(0);
 
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -80,18 +86,18 @@ export function SchoolClicker() {
       setMyTotalClicks(parseInt(savedClicks, 10));
     }
 
-    // Kakao SDK 초기화 안전 장치
+    // Kakao SDK 초기화
     const initKakao = () => {
-      try {
-        if (window.Kakao && !window.Kakao.isInitialized()) {
-          window.Kakao.init('619a98fc6bc8426aa8804d86591c7a6c');
+      if (window.Kakao && !window.Kakao.isInitialized()) {
+        try {
+          window.Kakao.init(KAKAO_KEY);
+        } catch (e) {
+          console.warn("Kakao init error", e);
         }
-      } catch (e) {
-        console.warn("Kakao SDK initialization deferred or failed.");
       }
     };
     
-    const timer = setTimeout(initKakao, 1500);
+    const timer = setTimeout(initKakao, 2000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -133,8 +139,7 @@ export function SchoolClicker() {
         }
       };
 
-      // 스크립트가 로드될 때까지 약간의 지연 후 실행
-      const timer = setTimeout(loadMap, 500);
+      const timer = setTimeout(loadMap, 800);
       return () => clearTimeout(timer);
     }
   }, [isClickModalOpen, selectedSchool]);
@@ -221,7 +226,29 @@ export function SchoolClicker() {
   };
 
   const handleButtonClick = () => {
-    if (!selectedSchool || !db) return;
+    if (!selectedSchool || !db || isCoolingDown) return;
+
+    // 비정상 클릭 속도 감지 (1초 내 15회 이상 클릭 시 차단)
+    const now = Date.now();
+    if (now - lastClickTimeRef.current < 1000) {
+      clickCountInSecondRef.current += 1;
+      if (clickCountInSecondRef.current > 15) {
+        setIsCoolingDown(true);
+        toast({
+          variant: "destructive",
+          title: "비정상 클릭 감지",
+          description: "잠시 후 다시 시도해주세요. (자동 클릭 방지)",
+        });
+        setTimeout(() => {
+          setIsCoolingDown(false);
+          clickCountInSecondRef.current = 0;
+        }, 3000);
+        return;
+      }
+    } else {
+      clickCountInSecondRef.current = 1;
+      lastClickTimeRef.current = now;
+    }
 
     const executeClick = () => {
       const newLocal = localClicks + 1;
@@ -253,32 +280,39 @@ export function SchoolClicker() {
       });
     };
 
-    // reCAPTCHA 체크
+    // reCAPTCHA 실행
     if (window.grecaptcha && window.grecaptcha.ready) {
-      try {
-        window.grecaptcha.ready(() => {
-          window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
-            .then((token: string) => {
-              if (token) executeClick();
-              else toast({ variant: "destructive", title: "보안 검증 오류", description: "다시 시도해주세요." });
-            }).catch(() => executeClick());
-        });
-      } catch (e) {
-        executeClick();
-      }
+      window.grecaptcha.ready(() => {
+        window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
+          .then((token: string) => {
+            if (token) {
+              executeClick();
+            }
+          })
+          .catch(() => {
+            executeClick();
+          });
+      });
     } else {
       executeClick();
     }
   };
 
   const handleKakaoShare = () => {
-    if (!selectedSchool || !window.Kakao || !window.Kakao.isInitialized()) {
-      toast({ variant: "destructive", title: "공유 실패", description: "카카오톡 서비스를 준비 중입니다." });
-      return;
+    if (!window.Kakao || !window.Kakao.isInitialized()) {
+      // 재초기화 시도
+      try {
+        window.Kakao.init(KAKAO_KEY);
+      } catch(e) {
+        toast({ variant: "destructive", title: "공유 실패", description: "카카오 서비스를 사용할 수 없습니다." });
+        return;
+      }
     }
     
+    if (!selectedSchool) return;
+
     const score = currentSchoolServerData?.score || 0;
-    const rankText = currentRank ? `전국 실시간 ${currentRank}위!` : '지금 바로 응원하세요!';
+    const rankText = currentRank ? `전국 ${currentRank}위!` : '지금 바로 응원하세요!';
 
     try {
       window.Kakao.Share.sendDefault({
@@ -288,16 +322,16 @@ export function SchoolClicker() {
           description: `누적 점수: ${score.toLocaleString()}점 | ${rankText}`,
           imageUrl: 'https://picsum.photos/seed/school/600/300',
           link: {
-            mobileWebUrl: window.location.href,
-            webUrl: window.location.href,
+            mobileWebUrl: window.location.origin,
+            webUrl: window.location.origin,
           },
         },
         buttons: [
           {
             title: '응원하러 가기',
             link: {
-              mobileWebUrl: window.location.href,
-              webUrl: window.location.href,
+              mobileWebUrl: window.location.origin,
+              webUrl: window.location.origin,
             },
           },
         ],
@@ -329,7 +363,7 @@ export function SchoolClicker() {
         batch.update(doc.ref, { score: 0, updatedAt: serverTimestamp() });
       });
       await batch.commit();
-      toast({ title: "초기화 완료" });
+      toast({ title: "전체 초기화 완료" });
     } catch (error) {
       toast({ variant: "destructive", title: "초기화 실패" });
     } finally {
@@ -345,8 +379,9 @@ export function SchoolClicker() {
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
       setIsLoginDialogOpen(false);
       setIsAdminDialogOpen(true);
+      toast({ title: "관리자 로그인 성공" });
     } catch (error: any) {
-      toast({ variant: "destructive", title: "로그인 실패", description: "계정을 확인해주세요." });
+      toast({ variant: "destructive", title: "로그인 실패", description: "계정 정보를 확인해주세요." });
     } finally {
       setIsLoggingIn(false);
     }
@@ -356,6 +391,7 @@ export function SchoolClicker() {
     if (!auth) return;
     await signOut(auth);
     setIsAdminDialogOpen(false);
+    toast({ title: "로그아웃 되었습니다." });
   };
 
   return (
@@ -466,6 +502,7 @@ export function SchoolClicker() {
         </button>
       </footer>
 
+      {/* 학교 검색 모달 */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 pb-0">
@@ -518,6 +555,7 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
+      {/* 클릭 및 상세 정보 모달 */}
       <Dialog open={isClickModalOpen} onOpenChange={setIsClickModalOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-card">
           {selectedSchool && (
@@ -548,16 +586,25 @@ export function SchoolClicker() {
                 <div className="relative group">
                   <Button
                     onClick={handleButtonClick}
-                    className="w-full h-24 text-3xl font-black rounded-[2rem] shadow-xl transition-all active:scale-[0.96] bg-primary hover:bg-primary/90 text-primary-foreground"
+                    disabled={isCoolingDown}
+                    className={cn(
+                      "w-full h-24 text-3xl font-black rounded-[2rem] shadow-xl transition-all active:scale-[0.96] text-primary-foreground",
+                      isCoolingDown ? "bg-muted cursor-not-allowed" : "bg-primary hover:bg-primary/90"
+                    )}
                   >
-                    CLICK!
+                    {isCoolingDown ? "잠시 대기..." : "CLICK!"}
                   </Button>
+                  {isCoolingDown && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <AlertCircle className="h-10 w-10 text-destructive animate-bounce" />
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-4">
                   <div className="text-left space-y-2">
                     <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
-                      <MapPin className="h-3 w-3" /> 학교 위치 (카카오맵)
+                      <MapPin className="h-3 w-3" /> 학교 위치 (지도)
                     </div>
                     <div 
                       ref={mapContainerRef} 
@@ -594,6 +641,7 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
+      {/* 관리자 로그인 모달 */}
       <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
         <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader>
@@ -631,6 +679,7 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
+      {/* 관리자 대시보드 모달 */}
       <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 bg-primary/10 flex flex-row items-center justify-between">
@@ -656,7 +705,7 @@ export function SchoolClicker() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/50" />
               <Input 
-                placeholder="학교 검색" 
+                placeholder="관리할 학교 검색" 
                 value={adminSearchQuery}
                 onChange={(e) => setAdminSearchQuery(e.target.value)}
                 className="pl-9 h-10 rounded-xl bg-background border-border"

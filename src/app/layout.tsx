@@ -20,7 +20,7 @@ export default function RootLayout({
         {children}
         <FirebaseErrorListener />
         <Toaster />
-        {/* Kakao Maps SDK - autoload=false로 설정하여 필요할 때 수동 로드 */}
+        {/* Kakao Maps SDK - 핵심 SDK는 먼저 로드 */}
         <Script
           src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=619a98fc6bc8426aa8804d86591c7a6c&libraries=services&autoload=false"
           strategy="beforeInteractive"
