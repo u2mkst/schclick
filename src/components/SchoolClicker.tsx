@@ -10,7 +10,7 @@ import {
   Search, Trophy, Loader2, MapPin, 
   Phone, Link as LinkIcon, Calendar, GraduationCap, 
   Moon, Sun, Settings, RotateCcw, X, AlertCircle,
-  MousePointer2, Globe
+  MousePointer2, Globe, BadgeInfo
 } from "lucide-react";
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { useFirestore, useCollection, useAuth, useMemoFirebase } from "@/firebase";
 import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy, limit } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
@@ -75,7 +76,7 @@ export function SchoolClicker() {
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const rankings = useMemo(() => rankingsData || [], [rankingsData]);
 
-  // Global Total Clicks (Sum of rankings)
+  // Global Total Clicks
   const globalTotalClicks = useMemo(() => {
     return rankings.reduce((acc: number, school: any) => acc + (school.score || 0), 0);
   }, [rankings]);
@@ -128,12 +129,12 @@ export function SchoolClicker() {
     const school: School = {
       SD_SCHUL_CODE: rankData.id,
       SCHUL_NM: rankData.name,
-      ATPT_OFCDC_SC_NM: rankData.officeName || "",
+      ATPT_OFCDC_SC_NM: rankData.cityProvinceName || "",
+      SCHUL_KND_SC_NM: rankData.schoolKind || "",
       ORG_RDNMA: rankData.address || "정보 없음",
       ORG_TELNO: rankData.phone || "정보 없음",
       HMPG_ADRES: rankData.website || "정보 없음",
-      FOND_YMD: rankData.founded || "",
-      SCHUL_KND_SC_NM: ""
+      FOND_YMD: rankData.founded || ""
     };
     setSelectedSchool(school);
     setLocalClicks(0);
@@ -153,7 +154,8 @@ export function SchoolClicker() {
     setDoc(schoolRef, {
       id: selectedSchool.SD_SCHUL_CODE,
       name: selectedSchool.SCHUL_NM,
-      officeName: selectedSchool.ATPT_OFCDC_SC_NM,
+      cityProvinceName: selectedSchool.ATPT_OFCDC_SC_NM,
+      schoolKind: selectedSchool.SCHUL_KND_SC_NM,
       address: selectedSchool.ORG_RDNMA,
       phone: selectedSchool.ORG_TELNO,
       website: selectedSchool.HMPG_ADRES,
@@ -250,8 +252,15 @@ export function SchoolClicker() {
                         {idx + 1}
                       </span>
                       <div className="flex flex-col">
-                        <span className="font-bold text-sm group-hover:text-primary transition-colors">{school.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{school.officeName}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm group-hover:text-primary transition-colors">{school.name}</span>
+                          {school.schoolKind && (
+                            <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 text-primary rounded-md font-bold">
+                              {school.schoolKind}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">{school.cityProvinceName}</span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -305,7 +314,7 @@ export function SchoolClicker() {
           <div className="p-6 space-y-4">
             <div className="relative">
               <Input
-                placeholder="학교 이름을 입력하세요 (예: 서울고)"
+                placeholder="학교 이름을 입력하세요 (예: 서울초)"
                 value={searchKeyword}
                 onChange={(e) => handleSearch(e.target.value)}
                 className="pl-10 h-12 rounded-xl focus-visible:ring-primary/30"
@@ -325,7 +334,12 @@ export function SchoolClicker() {
                       className="w-full text-left p-4 rounded-xl hover:bg-secondary transition-all flex items-center justify-between group"
                     >
                       <div className="flex flex-col">
-                        <span className="font-bold text-base group-hover:text-primary transition-colors">{school.SCHUL_NM}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-base group-hover:text-primary transition-colors">{school.SCHUL_NM}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 bg-muted rounded-md font-bold text-muted-foreground">
+                            {school.SCHUL_KND_SC_NM}
+                          </span>
+                        </div>
                         <span className="text-xs text-muted-foreground">{school.ATPT_OFCDC_SC_NM}</span>
                       </div>
                       <GraduationCap className="h-4 w-4 opacity-0 group-hover:opacity-100 text-primary transition-all" />
@@ -355,8 +369,10 @@ export function SchoolClicker() {
                 <DialogTitle className="text-2xl font-black tracking-tighter leading-tight">
                   {selectedSchool.SCHUL_NM}
                 </DialogTitle>
-                <div className="flex items-center justify-center gap-1 text-muted-foreground text-xs font-medium">
+                <div className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs font-medium">
                   <MapPin className="h-3.5 w-3.5" /> {selectedSchool.ATPT_OFCDC_SC_NM}
+                  <span className="mx-1">•</span>
+                  <BadgeInfo className="h-3.5 w-3.5" /> {selectedSchool.SCHUL_KND_SC_NM}
                 </div>
               </div>
 
@@ -423,7 +439,7 @@ export function SchoolClicker() {
                     <div key={school.id} className="flex items-center justify-between p-4 px-6 hover:bg-secondary/10 transition-colors">
                       <div className="flex flex-col">
                         <span className="text-sm font-bold">{school.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{school.score.toLocaleString()} clicks</span>
+                        <span className="text-[10px] text-muted-foreground">{(school.score || 0).toLocaleString()} clicks</span>
                       </div>
                       <Button 
                         size="sm" 
@@ -467,7 +483,7 @@ function InfoItem({ icon, label, value, isLink, href }: { icon: any, label: stri
       <div className="text-[10px] font-bold truncate">
         {isLink ? (
           <a href={linkHref} target="_blank" rel="noreferrer" className="text-primary hover:underline block truncate">
-            {href ? "위치 보기" : "사이트 방문"}
+            {href ? "지도 보기" : "사이트 방문"}
           </a>
         ) : value}
       </div>

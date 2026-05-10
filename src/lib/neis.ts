@@ -14,7 +14,8 @@ const NEIS_KEY = "19f78fd07bfb4243a6333e7bf4641bfc";
 export async function searchSchools(keyword: string): Promise<School[]> {
   if (keyword.length < 2) return [];
   
-  const url = `https://open.neis.go.kr/hub/schoolInfo?KEY=${NEIS_KEY}&Type=json&SCHUL_NM=${encodeURIComponent(keyword)}`;
+  // pSize=100을 추가하여 초등학교를 포함한 더 많은 결과를 가져옵니다.
+  const url = `https://open.neis.go.kr/hub/schoolInfo?KEY=${NEIS_KEY}&Type=json&pSize=100&SCHUL_NM=${encodeURIComponent(keyword)}`;
   
   try {
     const res = await fetch(url);
