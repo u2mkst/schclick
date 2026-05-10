@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -128,22 +129,22 @@ export function SchoolClicker() {
 
   const isAdmin = useMemo(() => user && !user.isAnonymous, [user]);
 
+  // 순위 데이터를 TOP 10으로 제한
   const rankingQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "schools"), orderBy("score", "desc"), limit(100));
+    return query(collection(db, "schools"), orderBy("score", "desc"), limit(10));
   }, [db]);
   
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
-  const allManagedSchools = useMemo(() => rankingsData || [], [rankingsData]);
-  const rankings = useMemo(() => allManagedSchools.slice(0, 10), [allManagedSchools]);
+  const rankings = useMemo(() => rankingsData || [], [rankingsData]);
 
   const globalTotalClicks = useMemo(() => rankings.reduce((acc: number, s: any) => acc + (s.score || 0), 0), [rankings]);
-  const currentSchoolServerData = useMemo(() => selectedSchool ? allManagedSchools.find((r: any) => r.id === selectedSchool.SD_SCHUL_CODE) : null, [allManagedSchools, selectedSchool]);
+  const currentSchoolServerData = useMemo(() => selectedSchool ? rankings.find((r: any) => r.id === selectedSchool.SD_SCHUL_CODE) : null, [rankings, selectedSchool]);
   const currentRank = useMemo(() => {
     if (!selectedSchool) return null;
-    const idx = allManagedSchools.findIndex((r: any) => r.id === selectedSchool.SD_SCHUL_CODE);
+    const idx = rankings.findIndex((r: any) => r.id === selectedSchool.SD_SCHUL_CODE);
     return idx !== -1 ? idx + 1 : null;
-  }, [allManagedSchools, selectedSchool]);
+  }, [rankings, selectedSchool]);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -200,7 +201,7 @@ export function SchoolClicker() {
         id: selectedSchool.SD_SCHUL_CODE,
         name: selectedSchool.SCHUL_NM,
         cityProvinceName: selectedSchool.ATPT_OFCDC_SC_NM,
-        atptCode: selectedSchool.ATPT_OFCDC_SC_CODE, // 급식 조회를 위해 저장
+        atptCode: selectedSchool.ATPT_OFCDC_SC_CODE,
         schoolKind: selectedSchool.SCHUL_KND_SC_NM,
         address: selectedSchool.ORG_RDNMA,
         score: increment(1),
@@ -467,7 +468,6 @@ export function SchoolClicker() {
                 </Button>
 
                 <div className="space-y-4">
-                  {/* 오늘의 급식 섹션 */}
                   <div className="text-left space-y-2">
                     <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
                       <UtensilsCrossed className="h-3 w-3" /> 오늘의 급식
@@ -576,7 +576,7 @@ export function SchoolClicker() {
           </div>
           <ScrollArea className="h-[400px]">
             <div className="divide-y">
-              {allManagedSchools
+              {rankings
                 .filter(s => s.name.includes(adminSearchQuery))
                 .map((school: any) => (
                 <div key={school.id} className="flex items-center justify-between p-4 px-6">
