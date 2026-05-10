@@ -312,7 +312,7 @@ export function SchoolClicker() {
         <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden border">
           <CardHeader className="py-4 px-6 border-b bg-secondary/10">
             <CardTitle className="text-sm font-bold flex items-center gap-2 headline">
-              <Trophy className="h-4 w-4 text-primary" /> 실시간 명예의 전당 (TOP 10)
+              <Trophy className="h-4 w-4 text-primary" /> 학교 순위 TOP 10
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
