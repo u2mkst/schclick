@@ -10,7 +10,7 @@ import {
   Search, Trophy, Loader2, MapPin, 
   Phone, Link as LinkIcon, Calendar, GraduationCap, 
   Moon, Sun, Settings, RotateCcw, X, AlertCircle,
-  MousePointer2, Globe, BadgeInfo
+  MousePointer2, Globe, BadgeInfo, LogOut, Key
 } from "lucide-react";
 import {
   Dialog,
@@ -19,17 +19,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { useFirestore, useCollection, useAuth, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useAuth, useMemoFirebase, useUser } from "@/firebase";
 import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy, limit } from "firebase/firestore";
-import { signInAnonymously } from "firebase/auth";
+import { signInAnonymously, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export function SchoolClicker() {
   const db = useFirestore();
   const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
   
   // State
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
@@ -39,9 +41,15 @@ export function SchoolClicker() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isClickModalOpen, setIsClickModalOpen] = useState(false);
   const [isAdminDialogOpen, setIsAdminDialogOpen] = useState(false);
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false);
   const [localClicks, setLocalClicks] = useState(0);
   const [myTotalClicks, setMyTotalClicks] = useState(0);
   const [isDark, setIsDark] = useState(false);
+
+  // Admin Login State
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Theme Persistence
   useEffect(() => {
@@ -60,12 +68,17 @@ export function SchoolClicker() {
     }
   }, []);
 
-  // Auth
+  // Auth: Default to Anonymous if not logged in
   useEffect(() => {
-    if (auth && !auth.currentUser) {
+    if (auth && !isUserLoading && !user) {
       signInAnonymously(auth).catch(() => {});
     }
-  }, [auth]);
+  }, [auth, user, isUserLoading]);
+
+  // Check if current user is "Admin" (not anonymous)
+  const isAdmin = useMemo(() => {
+    return user && !user.isAnonymous;
+  }, [user]);
 
   // Firestore Rankings
   const rankingQuery = useMemoFirebase(() => {
@@ -174,7 +187,7 @@ export function SchoolClicker() {
   };
 
   const handleResetScore = (schoolId: string) => {
-    if (!db) return;
+    if (!db || !isAdmin) return;
     const confirmReset = confirm("정말로 이 학교의 점수를 초기화하시겠습니까?");
     if (!confirmReset) return;
 
@@ -190,13 +203,35 @@ export function SchoolClicker() {
     });
   };
 
-  const toggleAdminMode = () => {
-    const password = prompt("관리자 비밀번호를 입력하세요:");
-    if (password === "kst12345") {
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth) return;
+    setIsLoggingIn(true);
+    try {
+      await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
+      setIsLoginDialogOpen(false);
       setIsAdminDialogOpen(true);
-    } else if (password !== null) {
-      alert("비밀번호가 올바르지 않습니다.");
+      setLoginEmail("");
+      setLoginPassword("");
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "로그인 실패",
+        description: "이메일 또는 비밀번호를 확인해주세요."
+      });
+    } finally {
+      setIsLoggingIn(false);
     }
+  };
+
+  const handleLogout = async () => {
+    if (!auth) return;
+    await signOut(auth);
+    setIsAdminDialogOpen(false);
+    toast({
+      title: "로그아웃 완료",
+      description: "익명 모드로 전환되었습니다."
+    });
   };
 
   return (
@@ -211,6 +246,11 @@ export function SchoolClicker() {
             <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
+            {isAdmin && (
+              <Button variant="ghost" size="icon" onClick={() => setIsAdminDialogOpen(true)} className="rounded-full text-primary">
+                <Settings className="h-5 w-5" />
+              </Button>
+            )}
           </div>
         </div>
       </header>
@@ -296,7 +336,7 @@ export function SchoolClicker() {
 
       <footer className="w-full py-10 text-center border-t mt-12 bg-secondary/10">
         <button 
-          onClick={toggleAdminMode}
+          onClick={() => isAdmin ? setIsAdminDialogOpen(true) : setIsLoginDialogOpen(true)}
           className="text-[10px] font-bold text-muted-foreground tracking-widest opacity-30 hover:opacity-100 transition-opacity outline-none"
         >
           ©2026 KST
@@ -423,13 +463,54 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
+      {/* 관리자 로그인 모달 */}
+      <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
+        <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-primary" /> 관리자 로그인
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAdminLogin} className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-muted-foreground ml-1">이메일</label>
+              <Input 
+                type="email" 
+                placeholder="admin@example.com" 
+                value={loginEmail} 
+                onChange={(e) => setLoginEmail(e.target.value)} 
+                required
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-muted-foreground ml-1">비밀번호</label>
+              <Input 
+                type="password" 
+                placeholder="••••••••" 
+                value={loginPassword} 
+                onChange={(e) => setLoginPassword(e.target.value)} 
+                required
+                className="rounded-xl"
+              />
+            </div>
+            <Button type="submit" className="w-full rounded-xl h-12 font-bold" disabled={isLoggingIn}>
+              {isLoggingIn ? <Loader2 className="animate-spin h-5 w-5" /> : "로그인"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* 관리자 모달 */}
       <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
-          <DialogHeader className="p-6 bg-primary/10">
+          <DialogHeader className="p-6 bg-primary/10 flex flex-row items-center justify-between">
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
               <Settings className="h-5 w-5 text-primary" /> 관리자 데이터 센터
             </DialogTitle>
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-xs font-bold text-destructive">
+              <LogOut className="h-3.5 w-3.5 mr-1" /> 로그아웃
+            </Button>
           </DialogHeader>
           <div className="p-0">
             <ScrollArea className="h-[400px]">
