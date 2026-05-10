@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
-  Search, Trophy, Loader2, MousePointer2, MapPin, 
+  Search, Trophy, Loader2, MapPin, 
   Phone, Link as LinkIcon, Calendar, GraduationCap, 
   Moon, Sun
 } from "lucide-react";
@@ -23,7 +23,6 @@ import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy, li
 import { signInAnonymously } from "firebase/auth";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
-import { cn } from "@/lib/utils";
 
 export function SchoolClicker() {
   const db = useFirestore();
@@ -107,7 +106,7 @@ export function SchoolClicker() {
   };
 
   return (
-    <div className="w-full min-h-screen pb-10">
+    <div className="w-full min-h-screen flex flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -120,7 +119,7 @@ export function SchoolClicker() {
         </div>
       </header>
 
-      <main className="max-w-xl mx-auto px-4 pt-6 space-y-6">
+      <main className="flex-1 max-w-xl mx-auto w-full px-4 pt-6 space-y-6">
         <section>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -168,7 +167,7 @@ export function SchoolClicker() {
           </Dialog>
         </section>
 
-        <Card className="border-none shadow-sm bg-secondary/50">
+        <Card className="border-none shadow-sm bg-secondary/30">
           <CardHeader className="py-4 px-6">
             <CardTitle className="text-base font-bold flex items-center gap-2">
               <Trophy className="h-4 w-4 text-primary" /> 실시간 순위
@@ -216,7 +215,7 @@ export function SchoolClicker() {
               onClick={handleButtonClick}
               disabled={!selectedSchool}
               size="lg"
-              className="w-full h-24 text-2xl font-black rounded-3xl shadow-xl transition-all click-btn-active"
+              className="w-full h-24 text-2xl font-black rounded-3xl shadow-xl transition-all active:scale-[0.98]"
             >
               CLICK!
             </Button>
@@ -232,6 +231,10 @@ export function SchoolClicker() {
           )}
         </section>
       </main>
+
+      <footer className="w-full py-8 text-center border-t mt-10">
+        <p className="text-xs font-medium text-muted-foreground opacity-50">©2026 KST</p>
+      </footer>
     </div>
   );
 }
