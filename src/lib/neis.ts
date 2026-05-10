@@ -28,13 +28,15 @@ export async function searchSchools(keyword: string): Promise<School[]> {
 }
 
 export async function getSchoolMeal(atptCode: string, schulCode: string): Promise<string> {
-  // 한국 시간 기준으로 날짜 생성 (toISOString은 UTC 기준이라 한국과 날짜가 다를 수 있음)
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
+  // 한국 시간 기준으로 날짜 생성
+  const kstNow = new Date(new Date().getTime() + (9 * 60 * 60 * 1000));
+  const year = kstNow.getUTCFullYear();
+  const month = String(kstNow.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(kstNow.getUTCDate()).padStart(2, '0');
   const today = `${year}${month}${day}`;
   
+  if (!atptCode || !schulCode) return "학교 코드 정보가 부족합니다.";
+
   const url = `https://open.neis.go.kr/hub/mealServiceDietInfo?KEY=${NEIS_KEY}&Type=json&ATPT_OFCDC_SC_CODE=${atptCode}&SD_SCHUL_CODE=${schulCode}&MLSV_YMD=${today}`;
 
   try {
@@ -42,18 +44,27 @@ export async function getSchoolMeal(atptCode: string, schulCode: string): Promis
     if (!res.ok) throw new Error("Network response was not ok");
     const data = await res.json();
     
-    if (data.RESULT && data.RESULT.CODE === "INFO-200") {
+    // 데이터가 없는 경우 처리
+    if (data.RESULT && (data.RESULT.CODE === "INFO-200" || data.RESULT.CODE === "INFO-100")) {
       return "오늘의 급식 정보가 없습니다.";
     }
 
-    const row = data.mealServiceDietInfo?.[1]?.row?.[0];
+    if (!data.mealServiceDietInfo) {
+      return "오늘의 급식 정보가 없습니다.";
+    }
+
+    const row = data.mealServiceDietInfo[1].row[0];
     if (row && row.DDISH_NM) {
       // <br/> 태그를 줄바꿈으로 변경하고 특수기호 및 알러지 정보 정리
-      return row.DDISH_NM.replace(/<br\/>/g, '\n').replace(/\([0-9.]+\)/g, '').trim();
+      return row.DDISH_NM
+        .replace(/<br\/>/g, '\n')
+        .replace(/\([0-9.]+\)/g, '')
+        .replace(/\*/g, '')
+        .trim();
     }
     return "급식 정보를 찾을 수 없습니다.";
   } catch (error) {
     console.error("Meal API Error:", error);
-    return "정보를 불러오는 중 오류가 발생했습니다.";
+    return "급식 정보를 불러오는 중 오류가 발생했습니다.";
   }
 }

@@ -200,6 +200,7 @@ export function SchoolClicker() {
         id: selectedSchool.SD_SCHUL_CODE,
         name: selectedSchool.SCHUL_NM,
         cityProvinceName: selectedSchool.ATPT_OFCDC_SC_NM,
+        atptCode: selectedSchool.ATPT_OFCDC_SC_CODE, // 급식 조회를 위해 저장
         schoolKind: selectedSchool.SCHUL_KND_SC_NM,
         address: selectedSchool.ORG_RDNMA,
         score: increment(1),
