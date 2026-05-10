@@ -1,7 +1,8 @@
+
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { FirebaseClientProvider } from '@/firebase';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
@@ -17,9 +18,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="font-body antialiased bg-background text-foreground">
-        {children}
-        <FirebaseErrorListener />
-        <Toaster />
+        <FirebaseClientProvider>
+          {children}
+          <Toaster />
+        </FirebaseClientProvider>
         {/* Kakao SDK for Sharing */}
         <Script
           src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.0/kakao.min.js"
