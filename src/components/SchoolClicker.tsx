@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -69,7 +70,6 @@ export function SchoolClicker() {
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
 
-  // Theme & Local Data Initialization
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     const themeIsDark = savedTheme === "dark";
@@ -83,7 +83,6 @@ export function SchoolClicker() {
       setMyTotalClicks(parseInt(savedClicks, 10));
     }
 
-    // Kakao SDK Initialization
     const initKakao = () => {
       if (window.Kakao && !window.Kakao.isInitialized()) {
         try {
@@ -104,14 +103,12 @@ export function SchoolClicker() {
     return () => clearInterval(interval);
   }, []);
 
-  // Anonymous Auth
   useEffect(() => {
     if (auth && !isUserLoading && !user) {
       signInAnonymously(auth).catch(() => {});
     }
   }, [auth, user, isUserLoading]);
 
-  // Kakao Map Load using the provided pattern
   useEffect(() => {
     if (isClickModalOpen && selectedSchool && mapContainerRef.current) {
       const renderMap = () => {
@@ -123,7 +120,6 @@ export function SchoolClicker() {
             if (status === window.kakao.maps.services.Status.OK && mapContainerRef.current) {
               const coords = new window.kakao.maps.LatLng(result[0].y, result[0].x);
               
-              // Map options inspired by user's snippet
               const options = {
                 center: coords,
                 level: 3
@@ -131,13 +127,11 @@ export function SchoolClicker() {
 
               const map = new window.kakao.maps.Map(mapContainerRef.current, options);
               
-              // Add Marker
               new window.kakao.maps.Marker({
                 map: map,
                 position: coords
               });
 
-              // Relayout map in case container size changed during load
               setTimeout(() => {
                 map.relayout();
                 map.setCenter(coords);
@@ -500,7 +494,7 @@ export function SchoolClicker() {
                     <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
                       <MapPin className="h-3 w-3" /> 학교 위치
                     </div>
-                    {/* Size optimized Kakao Map Container */}
+                    {/* Size optimized Kakao Map Container based on user's standard code */}
                     <div ref={mapContainerRef} className="w-full h-[250px] rounded-2xl bg-secondary/30 border border-border/30 overflow-hidden shadow-inner" />
                   </div>
 
