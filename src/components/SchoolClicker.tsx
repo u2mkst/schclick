@@ -78,9 +78,20 @@ export function SchoolClicker() {
       setMyTotalClicks(parseInt(savedClicks, 10));
     }
 
-    if (window.Kakao && !window.Kakao.isInitialized()) {
-      window.Kakao.init('619a98fc6bc8426aa8804d86591c7a6c');
-    }
+    // Kakao SDK 초기화 안전 장치
+    const initKakao = () => {
+      if (window.Kakao && !window.Kakao.isInitialized()) {
+        try {
+          window.Kakao.init('619a98fc6bc8426aa8804d86591c7a6c');
+        } catch (e) {
+          console.error("Kakao SDK Init Error:", e);
+        }
+      }
+    };
+    
+    // 스크립트 로드 대기를 위한 지연 실행
+    const timer = setTimeout(initKakao, 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -92,6 +103,11 @@ export function SchoolClicker() {
   useEffect(() => {
     if (isClickModalOpen && selectedSchool && mapContainerRef.current) {
       const loadMap = () => {
+        if (!window.kakao || !window.kakao.maps) {
+          console.warn("Kakao Maps SDK not loaded yet.");
+          return;
+        }
+        
         window.kakao.maps.load(() => {
           const geocoder = new window.kakao.maps.services.Geocoder();
           geocoder.addressSearch(selectedSchool.ORG_RDNMA, (result: any, status: any) => {
@@ -101,20 +117,20 @@ export function SchoolClicker() {
                 center: coords,
                 level: 3
               };
-              const map = new window.kakao.maps.Map(mapContainerRef.current, options);
-              new window.kakao.maps.Marker({
-                map: map,
-                position: coords
-              });
-              map.setCenter(coords);
+              if (mapContainerRef.current) {
+                const map = new window.kakao.maps.Map(mapContainerRef.current, options);
+                new window.kakao.maps.Marker({
+                  map: map,
+                  position: coords
+                });
+                map.setCenter(coords);
+              }
             }
           });
         });
       };
 
-      if (window.kakao && window.kakao.maps) {
-        loadMap();
-      }
+      loadMap();
     }
   }, [isClickModalOpen, selectedSchool]);
 
@@ -233,48 +249,59 @@ export function SchoolClicker() {
     };
 
     if (window.grecaptcha) {
-      window.grecaptcha.ready(() => {
-        window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
-          .then((token: string) => {
-            if (token) {
-              executeClick();
-            } else {
-              toast({ variant: "destructive", title: "보안 검증 실패", description: "정상적인 접근이 아닙니다." });
-            }
-          });
-      });
+      try {
+        window.grecaptcha.ready(() => {
+          window.grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'click' })
+            .then((token: string) => {
+              if (token) {
+                executeClick();
+              } else {
+                toast({ variant: "destructive", title: "보안 검증 실패", description: "정상적인 접근이 아닙니다." });
+              }
+            }).catch(() => executeClick()); // 리캡차 오류 시에도 일단 클릭 허용 (사용자 경험 우선)
+        });
+      } catch (e) {
+        executeClick();
+      }
     } else {
       executeClick();
     }
   };
 
   const handleKakaoShare = () => {
-    if (!selectedSchool || !window.Kakao) return;
+    if (!selectedSchool || !window.Kakao) {
+      toast({ variant: "destructive", title: "공유 실패", description: "카카오 SDK가 아직 준비되지 않았습니다." });
+      return;
+    }
     
     const score = currentSchoolServerData?.score || 0;
     const rankText = currentRank ? `현재 실시간 ${currentRank}위!` : '지금 바로 응원하세요!';
 
-    window.Kakao.Share.sendDefault({
-      objectType: 'feed',
-      content: {
-        title: selectedSchool.SCHUL_NM,
-        description: `누적 점수: ${score.toLocaleString()}점 | ${rankText}`,
-        imageUrl: 'https://picsum.photos/seed/school/600/300',
-        link: {
-          mobileWebUrl: window.location.href,
-          webUrl: window.location.href,
-        },
-      },
-      buttons: [
-        {
-          title: '응원하러 가기',
+    try {
+      window.Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: {
+          title: selectedSchool.SCHUL_NM,
+          description: `누적 점수: ${score.toLocaleString()}점 | ${rankText}`,
+          imageUrl: 'https://picsum.photos/seed/school/600/300',
           link: {
             mobileWebUrl: window.location.href,
             webUrl: window.location.href,
           },
         },
-      ],
-    });
+        buttons: [
+          {
+            title: '응원하러 가기',
+            link: {
+              mobileWebUrl: window.location.href,
+              webUrl: window.location.href,
+            },
+          },
+        ],
+      });
+    } catch (e) {
+      toast({ variant: "destructive", title: "공유 실패", description: "카카오톡 공유 도중 오류가 발생했습니다." });
+    }
   };
 
   const handleResetScore = (schoolId: string) => {
