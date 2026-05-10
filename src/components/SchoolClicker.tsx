@@ -10,7 +10,7 @@ import {
   Search, Trophy, Loader2, MapPin, 
   Phone, Link as LinkIcon, Calendar, GraduationCap, 
   Moon, Sun, Settings, RotateCcw, X, AlertCircle,
-  MousePointer2, Globe, BadgeInfo, LogOut, Key
+  MousePointer2, Globe, BadgeInfo, LogOut, Key, Trash2
 } from "lucide-react";
 import {
   Dialog,
@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFirestore, useCollection, useAuth, useMemoFirebase, useUser } from "@/firebase";
-import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy, limit } from "firebase/firestore";
+import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch } from "firebase/firestore";
 import { signInAnonymously, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -33,7 +33,6 @@ export function SchoolClicker() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
-  // State
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState<School[]>([]);
@@ -46,12 +45,12 @@ export function SchoolClicker() {
   const [myTotalClicks, setMyTotalClicks] = useState(0);
   const [isDark, setIsDark] = useState(false);
 
-  // Admin Login State
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [adminSearchQuery, setAdminSearchQuery] = useState("");
+  const [isResettingAll, setIsResettingAll] = useState(false);
 
-  // Theme Persistence
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     const themeIsDark = savedTheme === "dark";
@@ -68,44 +67,44 @@ export function SchoolClicker() {
     }
   }, []);
 
-  // Auth: Default to Anonymous if not logged in
   useEffect(() => {
     if (auth && !isUserLoading && !user) {
       signInAnonymously(auth).catch(() => {});
     }
   }, [auth, user, isUserLoading]);
 
-  // Check if current user is "Admin" (not anonymous)
   const isAdmin = useMemo(() => {
     return user && !user.isAnonymous;
   }, [user]);
 
-  // Firestore Rankings
   const rankingQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "schools"), orderBy("score", "desc"), limit(10));
+    return query(collection(db, "schools"), orderBy("score", "desc"), limit(100));
   }, [db]);
   
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
-  const rankings = useMemo(() => rankingsData || [], [rankingsData]);
+  const allManagedSchools = useMemo(() => rankingsData || [], [rankingsData]);
+  const rankings = useMemo(() => allManagedSchools.slice(0, 10), [allManagedSchools]);
 
-  // Global Total Clicks
+  const filteredAdminSchools = useMemo(() => {
+    if (!adminSearchQuery) return rankings;
+    return allManagedSchools.filter(s => s.name.includes(adminSearchQuery));
+  }, [allManagedSchools, rankings, adminSearchQuery]);
+
   const globalTotalClicks = useMemo(() => {
     return rankings.reduce((acc: number, school: any) => acc + (school.score || 0), 0);
   }, [rankings]);
 
-  // Current School Data from Server
   const currentSchoolServerData = useMemo(() => {
-    if (!selectedSchool || !rankings) return null;
-    return rankings.find((r: any) => r.id === selectedSchool.SD_SCHUL_CODE);
-  }, [rankings, selectedSchool]);
+    if (!selectedSchool || !allManagedSchools) return null;
+    return allManagedSchools.find((r: any) => r.id === selectedSchool.SD_SCHUL_CODE);
+  }, [allManagedSchools, selectedSchool]);
 
-  // Rank Calculation
   const currentRank = useMemo(() => {
-    if (!selectedSchool || !rankings) return null;
-    const index = rankings.findIndex((r: any) => r.id === selectedSchool.SD_SCHUL_CODE);
+    if (!selectedSchool || !allManagedSchools) return null;
+    const index = allManagedSchools.findIndex((r: any) => r.id === selectedSchool.SD_SCHUL_CODE);
     return index !== -1 ? index + 1 : null;
-  }, [rankings, selectedSchool]);
+  }, [allManagedSchools, selectedSchool]);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -201,6 +200,29 @@ export function SchoolClicker() {
       });
       errorEmitter.emit('permission-error', permissionError);
     });
+  };
+
+  const handleResetAllScores = async () => {
+    if (!db || !isAdmin) return;
+    const confirmReset = confirm("전체 학교의 점수를 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.");
+    if (!confirmReset) return;
+
+    setIsResettingAll(true);
+    try {
+      const querySnapshot = await getDocs(collection(db, "schools"));
+      const batch = writeBatch(db);
+      
+      querySnapshot.forEach((doc) => {
+        batch.update(doc.ref, { score: 0, updatedAt: serverTimestamp() });
+      });
+
+      await batch.commit();
+      toast({ title: "초기화 완료", description: "모든 학교의 점수가 0으로 초기화되었습니다." });
+    } catch (error) {
+      toast({ variant: "destructive", title: "초기화 실패", description: "권한이 없거나 오류가 발생했습니다." });
+    } finally {
+      setIsResettingAll(false);
+    }
   };
 
   const handleAdminLogin = async (e: React.FormEvent) => {
@@ -315,7 +337,6 @@ export function SchoolClicker() {
           </CardContent>
         </Card>
 
-        {/* Clicks Summary */}
         <section className="grid grid-cols-2 gap-4">
           <Card className="bg-primary/5 border-none rounded-2xl p-4 flex items-center gap-3">
             <div className="p-2 bg-primary/10 rounded-xl text-primary"><MousePointer2 className="h-5 w-5" /></div>
@@ -343,7 +364,6 @@ export function SchoolClicker() {
         </button>
       </footer>
 
-      {/* 학교 검색 모달 */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
           <DialogHeader className="p-6 pb-0">
@@ -396,7 +416,6 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
-      {/* 클릭 및 상세 정보 모달 */}
       <Dialog open={isClickModalOpen} onOpenChange={setIsClickModalOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl">
           {selectedSchool && (
@@ -463,7 +482,6 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
-      {/* 관리자 로그인 모달 */}
       <Dialog open={isLoginDialogOpen} onOpenChange={setIsLoginDialogOpen}>
         <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl">
           <DialogHeader>
@@ -501,22 +519,44 @@ export function SchoolClicker() {
         </DialogContent>
       </Dialog>
 
-      {/* 관리자 모달 */}
       <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl">
           <DialogHeader className="p-6 bg-primary/10 flex flex-row items-center justify-between">
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Settings className="h-5 w-5 text-primary" /> 관리자 데이터 센터
+              <Settings className="h-5 w-5 text-primary" /> 관리자 센터
             </DialogTitle>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="text-xs font-bold text-destructive">
-              <LogOut className="h-3.5 w-3.5 mr-1" /> 로그아웃
-            </Button>
+            <div className="flex items-center gap-2">
+               <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleResetAllScores} 
+                disabled={isResettingAll}
+                className="text-[10px] font-bold h-8 rounded-lg"
+              >
+                {isResettingAll ? <Loader2 className="animate-spin h-3 w-3 mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                전체 초기화
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleLogout} className="text-xs font-bold text-destructive">
+                <LogOut className="h-3.5 w-3.5" />
+              </Button>
+            </div>
           </DialogHeader>
+          <div className="p-4 border-b">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="학교 검색 (Top 100 내)" 
+                value={adminSearchQuery}
+                onChange={(e) => setAdminSearchQuery(e.target.value)}
+                className="pl-9 h-10 rounded-xl"
+              />
+            </div>
+          </div>
           <div className="p-0">
             <ScrollArea className="h-[400px]">
               <div className="divide-y divide-border/20">
-                {rankings.length > 0 ? (
-                  rankings.map((school: any) => (
+                {filteredAdminSchools.length > 0 ? (
+                  filteredAdminSchools.map((school: any) => (
                     <div key={school.id} className="flex items-center justify-between p-4 px-6 hover:bg-secondary/10 transition-colors">
                       <div className="flex flex-col">
                         <span className="text-sm font-bold">{school.name}</span>
@@ -524,18 +564,18 @@ export function SchoolClicker() {
                       </div>
                       <Button 
                         size="sm" 
-                        variant="destructive" 
-                        className="h-8 rounded-lg text-[10px] font-bold"
+                        variant="outline" 
+                        className="h-8 rounded-lg text-[10px] font-bold text-destructive border-destructive/20 hover:bg-destructive/10"
                         onClick={() => handleResetScore(school.id)}
                       >
-                        <RotateCcw className="h-3 w-3 mr-1.5" /> 점수 초기화
+                        <RotateCcw className="h-3 w-3 mr-1.5" /> 리셋
                       </Button>
                     </div>
                   ))
                 ) : (
                   <div className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground gap-3">
                     <AlertCircle className="h-8 w-8 opacity-20" />
-                    <p className="text-sm">관리할 데이터가 없습니다.</p>
+                    <p className="text-sm">검색 결과가 없거나 등록된 학교가 없습니다.</p>
                   </div>
                 )}
               </div>
@@ -543,7 +583,7 @@ export function SchoolClicker() {
           </div>
           <div className="p-4 bg-secondary/10 flex justify-center">
             <Button variant="outline" size="sm" onClick={() => setIsAdminDialogOpen(false)} className="rounded-full text-xs font-bold">
-              대시보드 종료
+              센터 종료
             </Button>
           </div>
         </DialogContent>
