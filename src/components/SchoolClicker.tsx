@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFirestore, useCollection, useAuth, useMemoFirebase } from "@/firebase";
-import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy, limit, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy, limit } from "firebase/firestore";
 import { signInAnonymously } from "firebase/auth";
 import { errorEmitter } from "@/firebase/error-emitter";
 import { FirestorePermissionError } from "@/firebase/errors";
@@ -330,9 +330,9 @@ export function SchoolClicker() {
                 <div className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest">
                   {currentRank ? `현재 실시간 ${currentRank}위` : '순위 진입 중...'}
                 </div>
-                <h2 className="text-3xl font-black tracking-tighter leading-tight">
+                <DialogTitle className="text-3xl font-black tracking-tighter leading-tight">
                   {selectedSchool.SCHUL_NM}
-                </h2>
+                </DialogTitle>
                 <div className="flex items-center justify-center gap-1 text-muted-foreground text-xs">
                   <MapPin className="h-3 w-3" /> {selectedSchool.ATPT_OFCDC_SC_NM}
                 </div>
@@ -400,7 +400,7 @@ function InfoItem({ icon, label, value, isLink, href }: { icon: any, label: stri
       <div className="text-[10px] font-bold truncate">
         {isLink ? (
           <a href={linkHref} target="_blank" rel="noreferrer" className="text-primary hover:underline block truncate">
-            {href ? value : '홈페이지'}
+            {href ? value : '지도 보기'}
           </a>
         ) : value}
       </div>
