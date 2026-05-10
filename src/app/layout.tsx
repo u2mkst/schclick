@@ -6,7 +6,7 @@ import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'SCHOOL CLICK',
-  description: '전국 학교 대항 클릭 게임. 우리 학교의 명예를 위해 클릭하세요!',
+  description: '전국 학교 대항 클릭 게임. SCHOOL CLICK!',
 };
 
 export default function RootLayout({
