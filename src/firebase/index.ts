@@ -6,39 +6,43 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore'
 
-// SDK 인스턴스를 캐싱하여 중복 초기화로 인한 내부 상태 오류(Assertion Failed)를 방지합니다.
-let cachedSdks: {
-  firebaseApp: FirebaseApp;
-  auth: Auth;
-  firestore: Firestore;
-} | null = null;
+// Next.js 개발 환경(HMR)에서 인스턴스 유지를 위해 전역 객체 키 정의
+const GLOBAL_FIREBASE_KEY = '__FIREBASE_SDKS_SINGLETON__';
 
 export function initializeFirebase() {
-  if (cachedSdks) return cachedSdks;
+  // 브라우저 환경에서 이미 초기화된 인스턴스가 전역에 존재하면 이를 반환 (HMR 대응)
+  if (typeof window !== 'undefined' && (window as any)[GLOBAL_FIREBASE_KEY]) {
+    return (window as any)[GLOBAL_FIREBASE_KEY];
+  }
 
   let firebaseApp: FirebaseApp;
 
-  if (!getApps().length) {
-    try {
-      // Firebase App Hosting 환경 변수를 통한 자동 초기화 시도
-      firebaseApp = initializeApp();
-    } catch (e) {
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
-      }
-      firebaseApp = initializeApp(firebaseConfig);
-    }
+  // 이미 초기화된 앱이 있는지 확인하여 중복 initializeApp 호출 방지
+  const existingApps = getApps();
+  if (existingApps.length > 0) {
+    firebaseApp = existingApps[0];
   } else {
-    firebaseApp = getApp();
+    try {
+      // Firebase Studio 환경의 기본 설정으로 앱 초기화
+      firebaseApp = initializeApp(firebaseConfig);
+    } catch (e) {
+      // 예외 발생 시 기존 앱 인스턴스 획득 시도
+      firebaseApp = getApp();
+    }
   }
 
-  cachedSdks = {
+  const sdks = {
     firebaseApp,
     auth: getAuth(firebaseApp),
     firestore: getFirestore(firebaseApp)
   };
 
-  return cachedSdks;
+  // 브라우저 전역 객체에 인스턴스 캐싱
+  if (typeof window !== 'undefined') {
+    (window as any)[GLOBAL_FIREBASE_KEY] = sdks;
+  }
+
+  return sdks;
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
