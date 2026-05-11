@@ -101,7 +101,6 @@ export function SchoolClicker() {
     const checkBanStatus = async (ip: string, id: string) => {
       if (!db) return;
       
-      // 1. Check IP Ban
       const banRef = doc(db, "bans", ip);
       const banSnap = await getDoc(banRef).catch(() => null);
       if (banSnap?.exists()) {
@@ -110,7 +109,6 @@ export function SchoolClicker() {
         return;
       }
 
-      // 2. Check Device ID Ban
       const deviceBanRef = doc(db, "deviceBans", id);
       const deviceBanSnap = await getDoc(deviceBanRef).catch(() => null);
       if (deviceBanSnap?.exists()) {
@@ -418,7 +416,7 @@ export function SchoolClicker() {
 
   const resetAllSchools = async () => {
     if (!db || !isAdmin) return;
-    if (!confirm("정말 모든 학교의 점수를 리셋하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")) return;
+    if (!confirm("정말 모든 학교의 점수와 대박 점수를 리셋하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")) return;
 
     setIsResettingAll(true);
     try {
@@ -440,13 +438,19 @@ export function SchoolClicker() {
       if (count > 0) {
         await batch.commit();
       }
-      toast({ title: "리셋 완료", description: "모든 학교의 점수가 초기화되었습니다." });
+      toast({ title: "리셋 완료", description: "모든 학교의 점수와 대박 점수가 초기화되었습니다." });
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "리셋 실패", description: "오류가 발생했습니다." });
     } finally {
       setIsResettingAll(false);
     }
+  };
+
+  const resetSingleSchool = (schoolId: string) => {
+    if (!db || !isAdmin) return;
+    setDocumentNonBlocking(doc(db, "schools", schoolId), { score: 0, daebakScore: 0 }, { merge: true });
+    toast({ title: "리셋 완료", description: "해당 학교의 모든 점수가 초기화되었습니다." });
   };
 
   return (
@@ -636,7 +640,6 @@ export function SchoolClicker() {
         </section>
       </main>
 
-      {/* Dialogs */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 pb-0"><DialogTitle className="flex items-center gap-2 text-primary headline"><GraduationCap className="h-5 w-5" /> 학교 검색</DialogTitle></DialogHeader>
@@ -793,7 +796,7 @@ export function SchoolClicker() {
                   onClick={resetAllSchools}
                 >
                   {isResettingAll ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
-                  전체 학교 점수 리셋
+                  전체 점수 & 대박 리셋
                 </Button>
               </div>
               <ScrollArea className="h-[400px]">
@@ -802,13 +805,16 @@ export function SchoolClicker() {
                     <div key={school.id} className="flex items-center justify-between p-4 px-6">
                       <div className="flex flex-col">
                         <span className="text-sm font-bold">{school.name}</span>
-                        <span className="text-[10px] text-muted-foreground">{school.score?.toLocaleString() || 0} pts</span>
+                        <div className="flex gap-2 text-[9px] font-bold">
+                          <span className="text-primary">{school.score?.toLocaleString() || 0} pts</span>
+                          <span className="text-amber-600">{school.daebakScore?.toLocaleString() || 0} daebak</span>
+                        </div>
                       </div>
                       <Button 
                         size="sm" 
                         variant="outline" 
                         className="h-8 text-destructive font-bold text-[10px]" 
-                        onClick={() => setDocumentNonBlocking(doc(db!, "schools", school.id), { score: 0, daebakScore: 0 }, { merge: true })}
+                        onClick={() => resetSingleSchool(school.id)}
                       >
                         리셋
                       </Button>
