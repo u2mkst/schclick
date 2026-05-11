@@ -378,22 +378,34 @@ export function SchoolClicker() {
         </section>
 
         {bestMealSchool && (
-          <Card className="border-none shadow-md bg-gradient-to-br from-amber-50 to-white dark:from-zinc-900/50 dark:to-zinc-900/30 rounded-2xl overflow-hidden border border-amber-200/30 dark:border-amber-900/20">
-            <CardHeader className="py-2 px-4 border-b border-amber-100/30 dark:border-amber-900/10 bg-amber-100/10 dark:bg-amber-900/10 flex flex-row items-center justify-between">
-              <CardTitle className="text-[10px] font-black flex items-center gap-1.5 text-amber-600 dark:text-amber-400 headline">
+          <Card className="border-none shadow-md bg-white dark:bg-zinc-900 rounded-2xl overflow-hidden border border-border/40">
+            <CardHeader className="py-2 px-4 border-b bg-secondary/10 flex flex-row items-center justify-between">
+              <CardTitle className="text-[10px] font-black flex items-center gap-1.5 text-amber-600 dark:text-amber-500 headline">
                 <Star className="h-3 w-3 fill-amber-500" /> 오늘의 대박 급식
               </CardTitle>
-              <div className="px-2 py-0.5 bg-amber-500 text-white text-[8px] font-black rounded-full uppercase tracking-tighter animate-pulse">#1 DAEBAK</div>
             </CardHeader>
             <CardContent className="p-4">
               <div className="flex gap-4 items-center">
                 {/* Left Side: School Info */}
-                <div className="flex-1 space-y-2">
-                  <h2 className="text-lg font-black headline text-foreground tracking-tighter leading-tight">
+                <div className="flex-1 space-y-1.5">
+                  <h2 
+                    className="text-lg font-black headline text-foreground tracking-tighter leading-tight cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => selectSchool({
+                      SD_SCHUL_CODE: bestMealSchool.id,
+                      SCHUL_NM: bestMealSchool.name,
+                      ATPT_OFCDC_SC_NM: bestMealSchool.cityProvinceName,
+                      SCHUL_KND_SC_NM: bestMealSchool.schoolKind,
+                      ATPT_OFCDC_SC_CODE: bestMealSchool.atptCode || "",
+                      ORG_RDNMA: bestMealSchool.address || "",
+                      ORG_TELNO: "",
+                      HMPG_ADRES: "",
+                      FOND_YMD: ""
+                    })}
+                  >
                     {bestMealSchool.name}
                   </h2>
-                  <div className="flex flex-col gap-1">
-                    <span className="w-fit text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-md">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-bold text-muted-foreground">
                       {bestMealSchool.cityProvinceName}
                     </span>
                     <span className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest">
@@ -402,25 +414,38 @@ export function SchoolClicker() {
                   </div>
                   <Button 
                     variant="link" 
-                    className="p-0 h-auto text-amber-600 dark:text-amber-400 font-bold text-[10px] hover:no-underline"
+                    className="p-0 h-auto text-primary font-bold text-[10px] hover:no-underline"
                     onClick={() => !isBotBlocked && setIsSearchOpen(true)}
                     disabled={isBotBlocked}
                   >
-                    대박 투표하기 &rarr;
+                    투표하기 &rarr;
                   </Button>
                 </div>
 
                 {/* Right Side: Meal Info Box */}
-                <div className="flex-[1.5] p-3 bg-white dark:bg-zinc-800/50 border border-amber-100/30 dark:border-amber-900/10 rounded-xl shadow-inner min-h-[90px] flex flex-col justify-center relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none">
+                <div 
+                  className="flex-[1.5] p-3 bg-secondary/20 dark:bg-zinc-800/50 border border-border/20 rounded-xl shadow-inner min-h-[90px] flex flex-col justify-center relative overflow-hidden cursor-pointer group"
+                  onClick={() => selectSchool({
+                    SD_SCHUL_CODE: bestMealSchool.id,
+                    SCHUL_NM: bestMealSchool.name,
+                    ATPT_OFCDC_SC_NM: bestMealSchool.cityProvinceName,
+                    SCHUL_KND_SC_NM: bestMealSchool.schoolKind,
+                    ATPT_OFCDC_SC_CODE: bestMealSchool.atptCode || "",
+                    ORG_RDNMA: bestMealSchool.address || "",
+                    ORG_TELNO: "",
+                    HMPG_ADRES: "",
+                    FOND_YMD: ""
+                  })}
+                >
+                  <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity">
                     <UtensilsCrossed className="h-8 w-8 text-amber-500" />
                   </div>
                   {isBestMealLoading ? (
                     <div className="flex justify-center py-1">
-                      <Loader2 className="animate-spin h-4 w-4 text-amber-500/50" />
+                      <Loader2 className="animate-spin h-4 w-4 text-primary/50" />
                     </div>
                   ) : (
-                    <p className="text-[11px] font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center relative z-10">
+                    <p className="text-[11px] font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center relative z-10 group-hover:text-primary transition-colors">
                       {bestMealInfo || "급식 정보를 불러올 수 없습니다."}
                     </p>
                   )}
@@ -433,7 +458,7 @@ export function SchoolClicker() {
         {/* 1위 학교 웅장하게 표시 */}
         {!rankingsLoading && rank1School && (
           <Card 
-            className="border-none shadow-2xl bg-gradient-to-br from-primary/95 to-primary rounded-[2.5rem] overflow-hidden text-primary-foreground group cursor-pointer transition-transform hover:scale-[1.02]"
+            className="border-none shadow-2xl bg-primary text-primary-foreground rounded-[2.5rem] overflow-hidden group cursor-pointer transition-transform hover:scale-[1.01]"
             onClick={() => !isBotBlocked && selectSchool({
               SD_SCHUL_CODE: rank1School.id,
               SCHUL_NM: rank1School.name,
@@ -447,7 +472,7 @@ export function SchoolClicker() {
             })}
           >
             <div className="p-8 space-y-4 relative">
-              <div className="absolute top-6 right-8 opacity-20 group-hover:opacity-40 transition-opacity">
+              <div className="absolute top-6 right-8 opacity-10 group-hover:opacity-20 transition-opacity">
                 <Crown className="h-24 w-24" />
               </div>
               <div className="space-y-1">
@@ -455,7 +480,7 @@ export function SchoolClicker() {
                   <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-tighter">Real-time #1</span>
                   <span className="text-[10px] font-bold opacity-80">{rank1School.cityProvinceName}</span>
                 </div>
-                <h2 className="text-4xl font-black headline tracking-tighter leading-tight drop-shadow-md">{rank1School.name}</h2>
+                <h2 className="text-4xl font-black headline tracking-tighter leading-tight">{rank1School.name}</h2>
               </div>
               <div className="pt-4 flex flex-col items-start gap-1">
                 <span className="text-[10px] font-bold opacity-70 uppercase tracking-widest">누적 클릭 스코어</span>
