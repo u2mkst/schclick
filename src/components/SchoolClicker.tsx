@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -199,6 +198,7 @@ export function SchoolClicker() {
   };
 
   const selectSchool = (school: School) => {
+    if (isBotBlocked) return;
     setSelectedSchool(school);
     setLocalClicks(0);
     setIsSearchOpen(false);
@@ -285,9 +285,10 @@ export function SchoolClicker() {
   };
 
   const handleAntiBotConfirm = () => {
+    if (isBotBlocked) return;
     setIsAntiBotOpen(false);
     setIsCoolingDown(false);
-    setSuspiciousClicks(0); // 의심 클릭 초기화
+    setSuspiciousClicks(0);
     clickCountInSecondRef.current = 0;
     lastClickTimeRef.current = Date.now();
     toast({
@@ -297,6 +298,7 @@ export function SchoolClicker() {
   };
 
   const handleKakaoShare = () => {
+    if (isBotBlocked) return;
     if (!window.Kakao || !window.Kakao.isInitialized()) {
       toast({
         variant: "destructive",
@@ -339,19 +341,19 @@ export function SchoolClicker() {
   };
 
   return (
-    <div className="w-full min-h-screen flex flex-col bg-background text-foreground">
+    <div className={cn("w-full min-h-screen flex flex-col bg-background text-foreground", isBotBlocked && "pointer-events-none")}>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => !isBotBlocked && window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <GraduationCap className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold tracking-tight headline">SCHOOL CLICK</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
+            <Button variant="ghost" size="icon" onClick={() => !isBotBlocked && toggleTheme()} className="rounded-full">
               {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
             {isAdmin && (
-              <Button variant="ghost" size="icon" onClick={() => setIsAdminDialogOpen(true)} className="rounded-full text-primary">
+              <Button variant="ghost" size="icon" onClick={() => !isBotBlocked && setIsAdminDialogOpen(true)} className="rounded-full text-primary">
                 <Settings className="h-5 w-5" />
               </Button>
             )}
@@ -363,7 +365,8 @@ export function SchoolClicker() {
         <section>
           <Button 
             variant="outline" 
-            onClick={() => setIsSearchOpen(true)}
+            onClick={() => !isBotBlocked && setIsSearchOpen(true)}
+            disabled={isBotBlocked}
             className="w-full h-14 text-base font-bold rounded-2xl border-2 hover:bg-primary/5 hover:border-primary/30 justify-start px-6 shadow-sm"
           >
             <Search className="mr-3 h-5 w-5 text-primary" /> 
@@ -400,7 +403,8 @@ export function SchoolClicker() {
               <Button 
                 variant="ghost" 
                 className="w-full text-amber-600 dark:text-amber-400 font-bold text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-2xl h-12"
-                onClick={() => setIsSearchOpen(true)}
+                onClick={() => !isBotBlocked && setIsSearchOpen(true)}
+                disabled={isBotBlocked}
               >
                 우리 학교도 대박 투표하기
               </Button>
@@ -422,7 +426,7 @@ export function SchoolClicker() {
                 rankings.map((school: any, idx: number) => (
                   <div 
                     key={school.id} 
-                    onClick={() => selectSchool({
+                    onClick={() => !isBotBlocked && selectSchool({
                       SD_SCHUL_CODE: school.id,
                       SCHUL_NM: school.name,
                       ATPT_OFCDC_SC_NM: school.cityProvinceName,
@@ -433,7 +437,7 @@ export function SchoolClicker() {
                       HMPG_ADRES: "",
                       FOND_YMD: ""
                     })}
-                    className="flex items-center justify-between p-4 px-6 hover:bg-primary/5 transition-colors cursor-pointer group"
+                    className={cn("flex items-center justify-between p-4 px-6 hover:bg-primary/5 transition-colors cursor-pointer group", isBotBlocked && "cursor-not-allowed")}
                   >
                     <div className="flex items-center gap-4">
                       <span className={cn(
@@ -482,7 +486,7 @@ export function SchoolClicker() {
 
       <footer className="w-full py-10 text-center border-t mt-auto bg-secondary/10">
         <button 
-          onClick={() => isAdmin ? setIsAdminDialogOpen(true) : setIsLoginDialogOpen(true)}
+          onClick={() => !isBotBlocked && (isAdmin ? setIsAdminDialogOpen(true) : setIsLoginDialogOpen(true))}
           className="text-[10px] font-bold text-muted-foreground tracking-widest opacity-30 hover:opacity-100 transition-opacity"
         >
           ©2026 SCHOOL CLICK
@@ -620,7 +624,7 @@ export function SchoolClicker() {
       {/* Anti-Bot Modal */}
       <Dialog open={isAntiBotOpen} onOpenChange={() => {}}>
         <DialogContent 
-          className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl bg-card p-8 text-center"
+          className={cn("sm:max-w-[400px] rounded-3xl border-none shadow-2xl bg-card p-8 text-center", isBotBlocked && "pointer-events-auto")}
           onClick={() => {
             if (isBotBlocked) return;
             setSuspiciousClicks(prev => {
@@ -645,7 +649,7 @@ export function SchoolClicker() {
               <DialogTitle className="text-3xl font-black text-destructive headline">접근 제한됨</DialogTitle>
               <DialogDescription className="text-base font-bold text-foreground pt-2">
                 지나친 자동 클릭 시도가 감지되어 서비스 이용이 일시적으로 제한되었습니다. <br /><br />
-                <span className="text-destructive">브라우저를 새로고침 해주세요.</span>
+                <span className="text-destructive font-black">브라우저를 새로고침 해주세요.</span>
               </DialogDescription>
             </div>
           ) : (
