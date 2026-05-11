@@ -1,55 +1,31 @@
-rules_version = '2';
 
-/**
- * FIRESTORE SECURITY RULES: SCHOOL CLICK APPLICATION
- * 
- * Core Philosophy:
- * This ruleset implements a public-read, community-engagement model. The primary focus 
- * is on school-level data that is accessible to all users for competitive engagement 
- * (clicking/scoring). It prioritizes ease of access for ranking data while maintaining 
- * the integrity of the school collection.
- * 
- * Data Structure:
- * All school data is organized in a flat, top-level /schools/{schoolId} collection. 
- * This structure promotes Authorization Independence, as each document contains all 
- * the metadata (name, city, kind) and state (score, slogans) required for the UI 
- * and for leaderboard ranking queries.
- * 
- * Key Security Decisions:
- * 1. Public Read Access: All school documents and the ability to list them are 
- *    publicly available (if true) to support national leaderboards and public school profiles.
- * 2. Authenticated Writes: Any authenticated user (including anonymous users) can 
- *    create or update school documents to increment scores, supporting the core "Click" mechanic.
- * 3. Restricted Deletion: Operations like 'delete' are restricted to prevent collection destruction.
- */
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Simple check to verify if the request comes from an authenticated user.
-     */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /**
-     * @description Rules for the 'schools' collection.
-     * @path /schools/{schoolId}
-     * @allow (get, list) for any user (public leaderboard).
-     * @allow (create, update) for any signed-in user to register schools and increment scores.
-     * @deny (delete) to prevent unauthorized collection modification.
-     */
-    match /schools/{schoolId} {
-      allow get, list: if true;
-      
-      // 사용자가 클릭 시 학교 정보를 서버에 처음 등록(create)하거나 점수를 수정(update)할 수 있어야 합니다.
-      allow create, update: if isSignedIn();
-      
-      allow delete: if false;
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email != null;
     }
 
-    // Default deny for any paths not explicitly matched.
+    match /schools/{schoolId} {
+      allow get, list: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /bans/{ip} {
+      allow get: if true;
+      allow list: if isAdmin();
+      // 매크로 감지 시 클라이언트에서 직접 생성할 수 있도록 허용 (보안상 운영 시에는 Cloud Functions 추천)
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
     match /{path=**} {
       allow read, write: if false;
     }

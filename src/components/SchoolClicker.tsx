@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useMemo, useEffect, useRef } from "react";
@@ -10,7 +11,7 @@ import {
   GraduationCap, Moon, Sun, Settings, 
   MousePointer2, Globe, LogOut, 
   Key, Share2, ShieldAlert, UtensilsCrossed,
-  Star, Crown
+  Star, Crown, Ban
 } from "lucide-react";
 import {
   Dialog,
@@ -20,9 +21,15 @@ import {
   DialogDescription,
   DialogFooter
 } from "@/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFirestore, useCollection, useAuth, useMemoFirebase, useUser } from "@/firebase";
-import { doc, setDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch } from "firebase/firestore";
+import { doc, setDoc, getDoc, deleteDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch } from "firebase/firestore";
 import { signInAnonymously, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -65,10 +72,11 @@ export function SchoolClicker() {
   const [isDark, setIsDark] = useState(false);
   const [hasDaebaked, setHasDaebaked] = useState(false);
 
-  // 안티봇 관련 상태
+  // 안티봇 & IP 차단 관련 상태
   const [isCoolingDown, setIsCoolingDown] = useState(false);
   const [suspiciousClicks, setSuspiciousClicks] = useState(0);
   const [isBotBlocked, setIsBotBlocked] = useState(false);
+  const [clientIp, setClientIp] = useState<string | null>(null);
   const lastClickTimeRef = useRef<number>(0);
   const clickCountInSecondRef = useRef<number>(0);
 
@@ -77,6 +85,28 @@ export function SchoolClicker() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [adminSearchQuery, setAdminSearchQuery] = useState("");
   const [isResettingAll, setIsResettingAll] = useState(false);
+
+  // IP 가져오기 및 차단 여부 확인
+  useEffect(() => {
+    const checkIpBan = async () => {
+      try {
+        const res = await fetch('https://api.ipify.org?format=json');
+        const data = await res.json();
+        const ip = data.ip;
+        setClientIp(ip);
+        
+        if (db && ip) {
+          const banSnap = await getDoc(doc(db, "bans", ip));
+          if (banSnap.exists()) {
+            setIsBotBlocked(true);
+          }
+        }
+      } catch (err) {
+        console.error("IP check failed:", err);
+      }
+    };
+    checkIpBan();
+  }, [db]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -161,6 +191,12 @@ export function SchoolClicker() {
   }, [db]);
   const { data: bestMealSchoolData } = useCollection(bestMealQuery);
   const bestMealSchool = useMemo(() => bestMealSchoolData?.[0] || null, [bestMealSchoolData]);
+
+  const bansQuery = useMemoFirebase(() => {
+    if (!db || !isAdmin) return null;
+    return query(collection(db, "bans"), orderBy("bannedAt", "desc"), limit(50));
+  }, [db, isAdmin]);
+  const { data: bannedIps } = useCollection(bansQuery);
 
   useEffect(() => {
     if (bestMealSchool && bestMealSchool.id !== fetchedBestMealId.current) {
@@ -343,6 +379,16 @@ export function SchoolClicker() {
     }
   };
 
+  const removeBan = async (ip: string) => {
+    if (!db || !isAdmin) return;
+    try {
+      await deleteDoc(doc(db, "bans", ip));
+      toast({ title: "차단 해제", description: `${ip} 주소의 차단이 해제되었습니다.` });
+    } catch (e) {
+      toast({ variant: "destructive", title: "해제 실패" });
+    }
+  };
+
   return (
     <div className={cn("w-full min-h-screen flex flex-col bg-background text-foreground", isBotBlocked && "pointer-events-none")}>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur-sm">
@@ -386,7 +432,6 @@ export function SchoolClicker() {
             </CardHeader>
             <CardContent className="p-4">
               <div className="flex gap-4 items-center">
-                {/* Left Side: School Info */}
                 <div className="flex-1 space-y-1.5">
                   <h2 
                     className="text-lg font-black headline text-foreground tracking-tighter leading-tight cursor-pointer hover:text-primary transition-colors"
@@ -418,11 +463,10 @@ export function SchoolClicker() {
                     onClick={() => !isBotBlocked && setIsSearchOpen(true)}
                     disabled={isBotBlocked}
                   >
-                    투표하기 &rarr;
+                    우리 학교도 대박 투표하기 &rarr;
                   </Button>
                 </div>
 
-                {/* Right Side: Meal Info Box */}
                 <div 
                   className="flex-[1.5] p-3 bg-secondary/20 dark:bg-zinc-800/50 border border-border/20 rounded-xl shadow-inner min-h-[90px] flex flex-col justify-center relative overflow-hidden cursor-pointer group"
                   onClick={() => selectSchool({
@@ -455,7 +499,6 @@ export function SchoolClicker() {
           </Card>
         )}
 
-        {/* 1위 학교 웅장하게 표시 */}
         {!rankingsLoading && rank1School && (
           <Card 
             className="border-none shadow-2xl bg-primary text-white rounded-[2.5rem] overflow-hidden group cursor-pointer transition-transform hover:scale-[1.01]"
@@ -709,10 +752,19 @@ export function SchoolClicker() {
               const next = prev + 1;
               if (next >= 100) {
                 setIsBotBlocked(true);
+                // IP 영구 차단 등록
+                if (db && clientIp) {
+                  setDoc(doc(db, "bans", clientIp), {
+                    ip: clientIp,
+                    bannedAt: serverTimestamp(),
+                    reason: "auto_click_detected",
+                    uid: user?.uid || "anonymous"
+                  });
+                }
                 toast({
                   variant: "destructive",
                   title: "비정상 활동 감지",
-                  description: "서비스 이용이 제한되었습니다.",
+                  description: "서비스 이용이 영구 제한되었습니다.",
                 });
               }
               return next;
@@ -726,8 +778,8 @@ export function SchoolClicker() {
               </div>
               <DialogTitle className="text-3xl font-black text-destructive headline">접근 제한됨</DialogTitle>
               <DialogDescription className="text-base font-bold text-foreground pt-2">
-                지나친 자동 클릭 시도가 감지되어 서비스 이용이 일시적으로 제한되었습니다. <br /><br />
-                <span className="text-destructive font-black">브라우저를 새로고침 해주세요.</span>
+                지나친 자동 클릭 시도가 감지되어 서비스 이용이 영구적으로 제한되었습니다. <br /><br />
+                <span className="text-destructive font-black">해제가 필요할 경우 관리자에게 문의하세요.</span>
               </DialogDescription>
             </div>
           ) : (
@@ -808,30 +860,66 @@ export function SchoolClicker() {
               <Button variant="ghost" size="sm" onClick={() => { signOut(auth!); setIsAdminDialogOpen(false); }} className="text-destructive"><LogOut className="h-4 w-4" /></Button>
             </div>
           </DialogHeader>
-          <div className="p-4 bg-secondary/5 border-b">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="등록된 학교 검색" value={adminSearchQuery} onChange={(e) => setAdminSearchQuery(e.target.value)} className="pl-9" />
-            </div>
-          </div>
-          <ScrollArea className="h-[400px]">
-            <div className="divide-y">
-              {rankings
-                .filter(s => s.name.includes(adminSearchQuery))
-                .map((school: any) => (
-                <div key={school.id} className="flex items-center justify-between p-4 px-6">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold">{school.name}</span>
-                    <span className="text-[10px] text-muted-foreground tabular-nums">{school.score.toLocaleString()} clicks / {school.daebakScore?.toLocaleString() || 0} daebak</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="h-8 text-[10px]" onClick={() => setDoc(doc(db!, "schools", school.id), { daebakScore: 0 }, { merge: true })}>대박 리셋</Button>
-                    <Button size="sm" variant="outline" className="h-8 text-destructive font-bold text-[10px]" onClick={() => setDoc(doc(db!, "schools", school.id), { score: 0 }, { merge: true })}>점수 리셋</Button>
-                  </div>
+          
+          <Tabs defaultValue="schools" className="w-full">
+            <TabsList className="w-full grid grid-cols-2 rounded-none">
+              <TabsTrigger value="schools" className="text-[10px] font-bold">학교 관리</TabsTrigger>
+              <TabsTrigger value="bans" className="text-[10px] font-bold">차단 IP ({bannedIps?.length || 0})</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="schools" className="m-0">
+              <div className="p-4 bg-secondary/5 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="등록된 학교 검색" value={adminSearchQuery} onChange={(e) => setAdminSearchQuery(e.target.value)} className="pl-9" />
                 </div>
-              ))}
-            </div>
-          </ScrollArea>
+              </div>
+              <ScrollArea className="h-[400px]">
+                <div className="divide-y">
+                  {rankings
+                    .filter(s => s.name.includes(adminSearchQuery))
+                    .map((school: any) => (
+                    <div key={school.id} className="flex items-center justify-between p-4 px-6">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold">{school.name}</span>
+                        <span className="text-[10px] text-muted-foreground tabular-nums">{school.score.toLocaleString()} clicks / {school.daebakScore?.toLocaleString() || 0} daebak</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="h-8 text-[10px]" onClick={() => setDoc(doc(db!, "schools", school.id), { daebakScore: 0 }, { merge: true })}>대박 리셋</Button>
+                        <Button size="sm" variant="outline" className="h-8 text-destructive font-bold text-[10px]" onClick={() => setDoc(doc(db!, "schools", school.id), { score: 0 }, { merge: true })}>점수 리셋</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+            
+            <TabsContent value="bans" className="m-0">
+              <ScrollArea className="h-[460px]">
+                <div className="divide-y">
+                  {bannedIps && bannedIps.length > 0 ? (
+                    bannedIps.map((ban: any) => (
+                      <div key={ban.id} className="flex items-center justify-between p-4 px-6">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold flex items-center gap-2">
+                            <ShieldAlert className="h-3 w-3 text-destructive" /> {ban.ip}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {ban.bannedAt?.toDate().toLocaleString()}
+                          </span>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-8 text-[10px] font-bold" onClick={() => removeBan(ban.ip)}>
+                          차단 해제
+                        </Button>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center p-12 text-sm text-muted-foreground">차단된 IP가 없습니다.</div>
+                  )}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>
