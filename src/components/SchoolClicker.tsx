@@ -10,7 +10,7 @@ import {
   GraduationCap, Moon, Sun, Settings, 
   MousePointer2, Globe, LogOut, 
   Key, Share2, ShieldAlert, UtensilsCrossed,
-  Star
+  Star, Crown
 } from "lucide-react";
 import {
   Dialog,
@@ -151,6 +151,10 @@ export function SchoolClicker() {
   
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const rankings = useMemo(() => rankingsData || [], [rankingsData]);
+
+  // 1위 학교와 나머지 학교 분리
+  const rank1School = useMemo(() => rankings[0] || null, [rankings]);
+  const otherRankings = useMemo(() => rankings.slice(1), [rankings]);
 
   const bestMealQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -412,6 +416,41 @@ export function SchoolClicker() {
           </Card>
         )}
 
+        {/* 1위 학교 웅장하게 표시 */}
+        {!rankingsLoading && rank1School && (
+          <Card 
+            className="border-none shadow-2xl bg-gradient-to-br from-primary/95 to-primary rounded-[2.5rem] overflow-hidden text-primary-foreground group cursor-pointer transition-transform hover:scale-[1.02]"
+            onClick={() => !isBotBlocked && selectSchool({
+              SD_SCHUL_CODE: rank1School.id,
+              SCHUL_NM: rank1School.name,
+              ATPT_OFCDC_SC_NM: rank1School.cityProvinceName,
+              SCHUL_KND_SC_NM: rank1School.schoolKind,
+              ATPT_OFCDC_SC_CODE: rank1School.atptCode || "",
+              ORG_RDNMA: rank1School.address || "",
+              ORG_TELNO: "",
+              HMPG_ADRES: "",
+              FOND_YMD: ""
+            })}
+          >
+            <div className="p-8 space-y-4 relative">
+              <div className="absolute top-6 right-8 opacity-20 group-hover:opacity-40 transition-opacity">
+                <Crown className="h-24 w-24" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-tighter">Real-time #1</span>
+                  <span className="text-[10px] font-bold opacity-80">{rank1School.cityProvinceName}</span>
+                </div>
+                <h2 className="text-4xl font-black headline tracking-tighter leading-tight drop-shadow-md">{rank1School.name}</h2>
+              </div>
+              <div className="pt-4 flex flex-col items-start gap-1">
+                <span className="text-[10px] font-bold opacity-70 uppercase tracking-widest">누적 클릭 스코어</span>
+                <span className="text-5xl font-black tabular-nums tracking-tighter">{(rank1School.score || 0).toLocaleString()}</span>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden border">
           <CardHeader className="py-4 px-6 border-b bg-secondary/10">
             <CardTitle className="text-sm font-bold flex items-center gap-2 headline">
@@ -423,7 +462,7 @@ export function SchoolClicker() {
               {rankingsLoading ? (
                 <div className="flex justify-center p-12"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>
               ) : rankings.length > 0 ? (
-                rankings.map((school: any, idx: number) => (
+                otherRankings.map((school: any, idx: number) => (
                   <div 
                     key={school.id} 
                     onClick={() => !isBotBlocked && selectSchool({
@@ -442,9 +481,9 @@ export function SchoolClicker() {
                     <div className="flex items-center gap-4">
                       <span className={cn(
                         "w-6 text-center text-sm font-black tabular-nums",
-                        idx === 0 ? "text-yellow-500 text-lg" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-amber-600" : "text-muted-foreground/40"
+                        idx === 0 ? "text-slate-400" : idx === 1 ? "text-amber-600" : "text-muted-foreground/40"
                       )}>
-                        {idx + 1}
+                        {idx + 2}
                       </span>
                       <div className="flex flex-col">
                         <div className="flex items-center gap-1.5">
