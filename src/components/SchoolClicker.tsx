@@ -240,6 +240,13 @@ export function SchoolClicker() {
       }
 
       setDoc(schoolRef, updateData, { merge: true }).catch(() => {});
+      
+      if (type === "daebak") {
+        toast({
+          title: "👍 대박!",
+          description: "베스트 급식 학교 선정에 도움이 되었습니다!",
+        });
+      }
     };
 
     if (window.grecaptcha && typeof window.grecaptcha.ready === 'function') {
@@ -342,12 +349,12 @@ export function SchoolClicker() {
           </Button>
         </section>
 
-        {/* 오늘의 베스트 급식 학교 섹션 (daebakScore 기준) */}
+        {/* 오늘의 대박 급식 섹션 (daebakScore 기준) */}
         {bestMealSchool && (
           <Card className="border-none shadow-lg bg-gradient-to-br from-amber-100/50 via-background to-background dark:from-amber-900/20 rounded-3xl overflow-hidden border-2 border-amber-200 dark:border-amber-800">
             <CardHeader className="py-4 px-6 border-b border-amber-100 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-black flex items-center gap-2 text-amber-600 dark:text-amber-400 headline">
-                <Star className="h-4 w-4 fill-amber-500" /> 오늘의 베스트 급식 학교
+                <Star className="h-4 w-4 fill-amber-500" /> 오늘의 대박 급식
               </CardTitle>
               <div className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-black rounded-full uppercase tracking-tighter">DAEBAK #1</div>
             </CardHeader>
@@ -538,29 +545,31 @@ export function SchoolClicker() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2">
+                <div className="w-full">
                   <Button
                     onClick={() => handleButtonClick("normal")}
-                    className="col-span-3 h-24 text-4xl font-black rounded-[2rem] shadow-xl transition-all active:scale-[0.96] bg-primary text-primary-foreground headline"
+                    className="w-full h-24 text-4xl font-black rounded-[2rem] shadow-xl transition-all active:scale-[0.96] bg-primary text-primary-foreground headline"
                   >
                     CLICK!
-                  </Button>
-                  <Button
-                    onClick={() => handleButtonClick("daebak")}
-                    className="col-span-1 h-24 text-lg font-black rounded-[2rem] shadow-lg transition-all active:scale-[0.96] bg-amber-500 hover:bg-amber-600 text-white flex flex-col items-center justify-center gap-1 headline"
-                    title="급식 베스트 학교를 위해 대박 버튼을 누르세요!"
-                  >
-                    <Sparkles className="h-5 w-5" />
-                    대박!
                   </Button>
                 </div>
 
                 <div className="space-y-4">
                   <div className="text-left space-y-2">
-                    <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
-                      <UtensilsCrossed className="h-3 w-3" /> 오늘의 급식
+                    <div className="flex items-center justify-between">
+                      <div className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
+                        <UtensilsCrossed className="h-3 w-3" /> 오늘의 급식
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        onClick={() => handleButtonClick("daebak")}
+                        className="h-7 px-3 text-[10px] font-black text-amber-600 hover:text-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/40 gap-1 rounded-full border border-amber-200 dark:border-amber-800"
+                      >
+                        <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> 대박!
+                      </Button>
                     </div>
-                    <div className="p-6 bg-primary/5 rounded-2xl border border-primary/10 min-h-[120px] flex flex-col justify-center">
+                    <div className="relative p-6 bg-primary/5 rounded-2xl border border-primary/10 min-h-[120px] flex flex-col justify-center overflow-hidden">
                       {isMealLoading ? (
                         <div className="flex flex-col items-center gap-2">
                           <Loader2 className="animate-spin h-6 w-6 text-primary/50" />
@@ -571,6 +580,9 @@ export function SchoolClicker() {
                           {mealInfo}
                         </p>
                       )}
+                      <div className="absolute -bottom-2 -right-2 opacity-5 pointer-events-none">
+                        <UtensilsCrossed className="h-16 w-16 text-primary" />
+                      </div>
                     </div>
                   </div>
                 </div>
