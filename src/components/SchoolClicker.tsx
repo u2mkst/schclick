@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFirestore, useCollection, useAuth, useMemoFirebase, useUser } from "@/firebase";
-import { doc, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch, deleteDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch, deleteDoc, setDoc, where } from "firebase/firestore";
 import { signInAnonymously, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -198,14 +198,24 @@ export function SchoolClicker() {
 
   const rankingQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "schools"), orderBy("score", "desc"), limit(100));
+    return query(
+      collection(db, "schools"), 
+      where("score", ">", 0),
+      orderBy("score", "desc"), 
+      limit(100)
+    );
   }, [db]);
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const rankings = useMemo(() => rankingsData || [], [rankingsData]);
 
   const bestMealQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "schools"), orderBy("daebakScore", "desc"), limit(1));
+    return query(
+      collection(db, "schools"), 
+      where("daebakScore", ">", 0),
+      orderBy("daebakScore", "desc"), 
+      limit(1)
+    );
   }, [db]);
   const { data: bestMealSchoolData } = useCollection(bestMealQuery);
   const bestMealSchool = useMemo(() => bestMealSchoolData?.[0] || null, [bestMealSchoolData]);
@@ -615,7 +625,7 @@ export function SchoolClicker() {
                     </div>
                   ))
                 ) : (
-                  <div className="text-center p-12 text-sm text-muted-foreground">아직 등록된 학교가 없습니다.</div>
+                  <div className="text-center p-12 text-sm text-muted-foreground">아직 순위에 등록된 학교가 없습니다.</div>
                 )}
               </div>
             </ScrollArea>
@@ -735,12 +745,12 @@ export function SchoolClicker() {
                 <div className="mx-auto p-4 bg-primary/10 rounded-full w-fit mb-4"><ShieldAlert className="h-10 w-10 text-primary animate-pulse" /></div>
                 <DialogTitle className="text-2xl font-black headline">잠시 대기!</DialogTitle>
                 <DialogDescription className="text-base font-bold text-foreground/80 pt-2" asChild>
-                  <span>
+                  <span className="block">
                     비정상적으로 빠른 클릭이 감지되었습니다.<br />
                     혹시 <span className="text-primary underline underline-offset-4">로봇이 아닙니까?</span>
                     {suspiciousClicks > 0 && (
                       <span className="block mt-4 p-2 bg-destructive/5 rounded-lg text-[10px] text-destructive font-black animate-bounce">
-                        경고: 의심스러운 활동 지속 감지 ({suspiciousClicks}/100)
+                        경고: 의심스러운 클릭 지속 감지 ({suspiciousClicks}/100)
                       </span>
                     )}
                   </span>
