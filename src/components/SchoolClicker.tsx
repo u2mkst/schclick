@@ -11,7 +11,7 @@ import {
   GraduationCap, Moon, Sun, Settings, 
   MousePointer2, Globe, LogOut, 
   Key, Share2, ShieldAlert, UtensilsCrossed,
-  Star, Crown
+  Star, Crown, AlertTriangle, CheckCircle2
 } from "lucide-react";
 import {
   Dialog,
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFirestore, useCollection, useAuth, useMemoFirebase, useUser } from "@/firebase";
-import { doc, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch } from "firebase/firestore";
+import { doc, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch, deleteDoc, setDoc } from "firebase/firestore";
 import { signInAnonymously, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -207,6 +207,12 @@ export function SchoolClicker() {
     return query(collection(db, "bans"), orderBy("bannedAt", "desc"), limit(50));
   }, [db, isAdmin]);
   const { data: bannedIps } = useCollection(bansQuery);
+
+  const flagsQuery = useMemoFirebase(() => {
+    if (!db || !isAdmin) return null;
+    return query(collection(db, "flags"), orderBy("flaggedAt", "desc"), limit(50));
+  }, [db, isAdmin]);
+  const { data: flaggedIps } = useCollection(flagsQuery);
 
   useEffect(() => {
     if (bestMealSchool && bestMealSchool.id !== fetchedBestMealId.current) {
@@ -394,6 +400,30 @@ export function SchoolClicker() {
     const banRef = doc(db, "bans", ip);
     deleteDocumentNonBlocking(banRef);
     toast({ title: "차단 해제 진행 중", description: `${ip} 주소의 차단 해제를 요청했습니다.` });
+  };
+
+  const approveBan = async (ip: string, reason: string) => {
+    if (!db || !isAdmin) return;
+    const banRef = doc(db, "bans", ip);
+    const flagRef = doc(db, "flags", ip);
+    
+    // 차단 목록에 추가하고 의심 목록에서 삭제
+    setDocumentNonBlocking(banRef, {
+      ip,
+      bannedAt: serverTimestamp(),
+      reason: reason,
+      uid: "admin_approved"
+    }, { merge: true });
+    
+    deleteDocumentNonBlocking(flagRef);
+    toast({ title: "영구 차단 완료", description: `${ip} 주소가 영구 차단되었습니다.` });
+  };
+
+  const dismissFlag = async (ip: string) => {
+    if (!db || !isAdmin) return;
+    const flagRef = doc(db, "flags", ip);
+    deleteDocumentNonBlocking(flagRef);
+    toast({ title: "의심 해제 완료", description: `${ip} 주소의 의심 기록을 삭제했습니다.` });
   };
 
   return (
@@ -758,22 +788,21 @@ export function SchoolClicker() {
             setSuspiciousClicks(prev => {
               const next = prev + 1;
               if (next >= 100) {
-                setIsBotBlocked(true);
-                // IP 영구 차단 등록
+                // 더 이상 자동 차단하지 않고 '의심 목록'에 추가
                 if (db && clientIp) {
-                  const data = {
+                  const flagRef = doc(db, "flags", clientIp);
+                  setDocumentNonBlocking(flagRef, {
                     ip: clientIp,
-                    bannedAt: serverTimestamp(),
-                    reason: "auto_click_detected",
+                    flaggedAt: serverTimestamp(),
+                    reason: "high_frequency_click_on_modal",
+                    clickCount: next,
                     uid: user?.uid || "anonymous"
-                  };
-                  const banRef = doc(db, "bans", clientIp);
-                  setDocumentNonBlocking(banRef, data, { merge: true });
+                  }, { merge: true });
                 }
                 toast({
                   variant: "destructive",
-                  title: "비정상 활동 감지",
-                  description: "서비스 이용이 영구 제한되었습니다.",
+                  title: "이상 활동 기록됨",
+                  description: "관리자 검토를 위해 활동이 기록되었습니다.",
                 });
               }
               return next;
@@ -787,7 +816,7 @@ export function SchoolClicker() {
               </div>
               <DialogTitle className="text-3xl font-black text-destructive headline">접근 제한됨</DialogTitle>
               <DialogDescription className="text-base font-bold text-foreground pt-2">
-                지나친 자동 클릭 시도가 감지되어 서비스 이용이 영구적으로 제한되었습니다. <br /><br />
+                비정상 활동이 감지되어 서비스 이용이 제한되었습니다. <br /><br />
                 <span className="text-destructive font-black">해제가 필요할 경우 관리자에게 문의하세요.</span>
               </DialogDescription>
             </div>
@@ -847,7 +876,7 @@ export function SchoolClicker() {
 
       {/* Admin Control Dialog */}
       <Dialog open={isAdminDialogOpen} onOpenChange={setIsAdminDialogOpen}>
-        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-3xl border-none shadow-2xl bg-card">
           <DialogHeader className="p-6 bg-primary/10 flex flex-row items-center justify-between">
             <DialogTitle className="text-lg font-bold flex items-center gap-2 text-primary headline"><Settings className="h-5 w-5" /> 관리자 센터</DialogTitle>
             <div className="flex items-center gap-2">
@@ -858,13 +887,7 @@ export function SchoolClicker() {
                   const snap = await getDocs(collection(db!, "schools"));
                   const batch = writeBatch(db!);
                   snap.forEach(d => batch.update(d.ref, { score: 0, daebakScore: 0 }));
-                  await batch.commit().catch(async (e) => {
-                    errorEmitter.emit('permission-error', new FirestorePermissionError({
-                      path: 'schools',
-                      operation: 'write'
-                    }));
-                    throw e;
-                  });
+                  await batch.commit();
                   toast({ title: "초기화 완료", description: "모든 점수가 0으로 설정되었습니다." });
                 } catch (e) {
                   toast({ variant: "destructive", title: "초기화 실패" });
@@ -877,8 +900,9 @@ export function SchoolClicker() {
           </DialogHeader>
           
           <Tabs defaultValue="schools" className="w-full">
-            <TabsList className="w-full grid grid-cols-2 rounded-none">
+            <TabsList className="w-full grid grid-cols-3 rounded-none">
               <TabsTrigger value="schools" className="text-[10px] font-bold">학교 관리</TabsTrigger>
+              <TabsTrigger value="flags" className="text-[10px] font-bold">의심 사용자 ({flaggedIps?.length || 0})</TabsTrigger>
               <TabsTrigger value="bans" className="text-[10px] font-bold">차단 IP ({bannedIps?.length || 0})</TabsTrigger>
             </TabsList>
             
@@ -905,6 +929,42 @@ export function SchoolClicker() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+
+            <TabsContent value="flags" className="m-0">
+              <ScrollArea className="h-[460px]">
+                <div className="divide-y">
+                  {flaggedIps && flaggedIps.length > 0 ? (
+                    flaggedIps.map((flag: any) => (
+                      <div key={flag.id} className="flex flex-col p-4 px-6 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold flex items-center gap-2">
+                              <AlertTriangle className="h-3 w-3 text-amber-500" /> {flag.ip}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {flag.flaggedAt?.toDate().toLocaleString()} | {flag.clickCount} clicks
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="h-8 text-[10px] text-primary font-bold" onClick={() => dismissFlag(flag.ip)}>
+                              <CheckCircle2 className="h-3 w-3 mr-1" /> 의심 해제
+                            </Button>
+                            <Button size="sm" variant="destructive" className="h-8 text-[10px] font-bold" onClick={() => approveBan(flag.ip, flag.reason)}>
+                              <ShieldAlert className="h-3 w-3 mr-1" /> 영구 차단
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="text-[9px] p-2 bg-secondary/20 rounded-md text-muted-foreground font-mono">
+                          Reason: {flag.reason}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center p-12 text-sm text-muted-foreground">감지된 의심 사용자가 없습니다.</div>
+                  )}
                 </div>
               </ScrollArea>
             </TabsContent>
