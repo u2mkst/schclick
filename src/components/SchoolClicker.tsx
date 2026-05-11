@@ -385,32 +385,47 @@ export function SchoolClicker() {
               </CardTitle>
               <div className="px-2 py-0.5 bg-amber-500 text-white text-[8px] font-black rounded-full uppercase tracking-tighter animate-pulse">#1 DAEBAK</div>
             </CardHeader>
-            <CardContent className="p-3 space-y-2">
-              <div className="flex flex-col items-center text-center">
-                <h2 className="text-base font-black headline text-foreground tracking-tighter">{bestMealSchool.name}</h2>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[9px] font-bold px-1 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-md">{bestMealSchool.cityProvinceName}</span>
-                  <span className="text-[9px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest">{bestMealSchool.daebakScore?.toLocaleString() || 0} DAEBAK</span>
+            <CardContent className="p-4">
+              <div className="flex gap-4 items-center">
+                {/* Left Side: School Info */}
+                <div className="flex-1 space-y-2">
+                  <h2 className="text-lg font-black headline text-foreground tracking-tighter leading-tight">
+                    {bestMealSchool.name}
+                  </h2>
+                  <div className="flex flex-col gap-1">
+                    <span className="w-fit text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-md">
+                      {bestMealSchool.cityProvinceName}
+                    </span>
+                    <span className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest">
+                      {bestMealSchool.daebakScore?.toLocaleString() || 0} DAEBAK
+                    </span>
+                  </div>
+                  <Button 
+                    variant="link" 
+                    className="p-0 h-auto text-amber-600 dark:text-amber-400 font-bold text-[10px] hover:no-underline"
+                    onClick={() => !isBotBlocked && setIsSearchOpen(true)}
+                    disabled={isBotBlocked}
+                  >
+                    대박 투표하기 &rarr;
+                  </Button>
+                </div>
+
+                {/* Right Side: Meal Info Box */}
+                <div className="flex-[1.5] p-3 bg-white dark:bg-zinc-800/50 border border-amber-100/30 dark:border-amber-900/10 rounded-xl shadow-inner min-h-[90px] flex flex-col justify-center relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none">
+                    <UtensilsCrossed className="h-8 w-8 text-amber-500" />
+                  </div>
+                  {isBestMealLoading ? (
+                    <div className="flex justify-center py-1">
+                      <Loader2 className="animate-spin h-4 w-4 text-amber-500/50" />
+                    </div>
+                  ) : (
+                    <p className="text-[11px] font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center relative z-10">
+                      {bestMealInfo || "급식 정보를 불러올 수 없습니다."}
+                    </p>
+                  )}
                 </div>
               </div>
-              <div className="p-3 bg-white dark:bg-zinc-800/50 border border-amber-100/30 dark:border-amber-900/10 rounded-xl shadow-inner min-h-[60px] flex flex-col justify-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-2 opacity-5 pointer-events-none"><UtensilsCrossed className="h-8 w-8 text-amber-500" /></div>
-                {isBestMealLoading ? (
-                  <div className="flex justify-center py-1"><Loader2 className="animate-spin h-4 w-4 text-amber-500/50" /></div>
-                ) : (
-                  <p className="text-[10px] font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center relative z-10">
-                    {bestMealInfo || "급식 정보를 불러올 수 없습니다."}
-                  </p>
-                )}
-              </div>
-              <Button 
-                variant="ghost" 
-                className="w-full text-amber-600 dark:text-amber-400 font-bold text-[10px] hover:bg-amber-50 dark:hover:bg-amber-900/10 rounded-lg h-7"
-                onClick={() => !isBotBlocked && setIsSearchOpen(true)}
-                disabled={isBotBlocked}
-              >
-                우리 학교도 대박 투표하기
-              </Button>
             </CardContent>
           </Card>
         )}
