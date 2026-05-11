@@ -822,9 +822,9 @@ export function SchoolClicker() {
                   비정상적으로 빠른 클릭이 감지되었습니다.<br />
                   혹시 <span className="text-primary underline underline-offset-4">로봇이 아닙니까?</span>
                   {suspiciousClicks > 0 && (
-                    <div className="mt-4 p-2 bg-destructive/5 rounded-lg text-[10px] text-destructive font-black animate-bounce">
+                    <span className="block mt-4 p-2 bg-destructive/5 rounded-lg text-[10px] text-destructive font-black animate-bounce">
                       경고: 의심스러운 클릭 지속 감지 ({suspiciousClicks}/100)
-                    </div>
+                    </span>
                   )}
                 </DialogDescription>
               </DialogHeader>
