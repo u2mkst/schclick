@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "School": {
@@ -17,6 +18,10 @@
         "score": {
           "type": "number",
           "description": "The total number of clicks accumulated by the school, indicating its popularity and engagement level."
+        },
+        "daebakScore": {
+          "type": "number",
+          "description": "The total number of 'Dae-bak' clicks accumulated by the school, used for the Best Meal ranking."
         },
         "cityProvinceName": {
           "type": "string",
@@ -58,16 +63,16 @@
           "schema": {
             "$ref": "#/backend/entities/School"
           },
-          "description": "Stores individual school data including its name, total clicks (score), city/province, school type, and AI-generated slogans. Documents in this collection are publicly readable and allow any user to increment the 'score' field. The 'schoolId' parameter refers to the unique ID of the school, which should be consistent with the 'id' field within the School document. Includes all data necessary for authorization independence.",
+          "description": "Stores individual school data including its name, total clicks (score), city/province, school type, and AI-generated slogans. Documents in this collection are publicly readable and allow any user to increment the 'score' and 'daebakScore' fields.",
           "params": [
             {
               "name": "schoolId",
-              "description": "The unique identifier for the school, serving as the document ID. This corresponds to the 'id' field within the School document."
+              "description": "The unique identifier for the school."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore data structure for the 'School Click' application is designed with simplicity and scalability in mind, leveraging a single top-level collection: `/schools`. Each document within this collection will represent a unique `School` entity, with its document ID (`schoolId`) corresponding to the `id` field of the `School` schema.\n\nThis structure achieves **Authorization Independence** by storing all relevant school data, including the `score` and `slogans`, directly within each `School` document. There are no nested subcollections whose authorization would depend on fetching data from a parent document, thus eliminating the need for `get()` calls in security rules and simplifying atomic operations. Each `School` document is self-contained with all its relevant data.\n\n**Querying as Permissions (QAPs)** are fully supported by this design. The application's core features, such as displaying a single school's performance or presenting a national ranking leaderboard, involve straightforward read and list operations on the `/schools` collection:\n- To display a specific school, the app will perform a direct `get` operation on `/schools/{schoolId}`. Since all school documents are publicly readable, this query is efficient and secure.\n- For the national ranking leaderboard, the app will execute a `list` operation on `/schools`, ordered by the `score` field and limited to the top 10. Firestore rules can easily permit this operation without filtering data, as all schools in the collection share the same security posture (publicly readable). This ensures that rules are not used as filters, adhering to the QAP principle.\n\nFurthermore, the design adheres to **Structural Segregation** by grouping all `School` documents, which share a homogeneous security posture (publicly readable and publicly writable for score increments), into a single collection. This avoids mixing data with different access requirements. The use of the `School` entity's fields directly within each document ensures **Data Clarity and Predictability**."
+    "reasoning": "The Firestore data structure for the 'School Click' application uses a flat /schools collection. Each document stores metadata and scores (score, daebakScore). This design ensures data clarity and supports Querying as Permissions (QAPs) for leaderboards."
   }
 }

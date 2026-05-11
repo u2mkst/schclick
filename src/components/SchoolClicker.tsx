@@ -11,7 +11,7 @@ import {
   GraduationCap, Moon, Sun, Settings, 
   MousePointer2, Globe, LogOut, 
   Key, Share2, ShieldAlert, UtensilsCrossed,
-  Star
+  Star, Sparkles
 } from "lucide-react";
 import {
   Dialog,
@@ -48,7 +48,7 @@ export function SchoolClicker() {
   const [mealInfo, setMealInfo] = useState<string>("불러오는 중...");
   const [isMealLoading, setIsMealLoading] = useState(false);
   
-  // 오늘의 베스트 급식 관련 상태
+  // 오늘의 베스트 급식 관련 상태 (daebakScore 기준)
   const [bestMealInfo, setBestMealInfo] = useState<string>("");
   const [isBestMealLoading, setIsBestMealLoading] = useState(false);
   const fetchedBestMealId = useRef<string>("");
@@ -135,7 +135,7 @@ export function SchoolClicker() {
 
   const isAdmin = useMemo(() => user && !user.isAnonymous, [user]);
 
-  // 순위 데이터를 TOP 10으로 제한
+  // 순위 데이터를 TOP 10으로 제한 (일반 점수 기준)
   const rankingQuery = useMemoFirebase(() => {
     if (!db) return null;
     return query(collection(db, "schools"), orderBy("score", "desc"), limit(10));
@@ -144,18 +144,25 @@ export function SchoolClicker() {
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const rankings = useMemo(() => rankingsData || [], [rankingsData]);
 
-  // 오늘의 베스트 급식 (1위 학교) 정보 가져오기
+  // 오늘의 베스트 급식 학교 쿼리 (daebakScore 기준 1위)
+  const bestMealQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "schools"), orderBy("daebakScore", "desc"), limit(1));
+  }, [db]);
+  const { data: bestMealSchoolData } = useCollection(bestMealQuery);
+  const bestMealSchool = useMemo(() => bestMealSchoolData?.[0] || null, [bestMealSchoolData]);
+
+  // 베스트 급식 학교 정보 가져오기
   useEffect(() => {
-    if (rankings.length > 0 && rankings[0].id !== fetchedBestMealId.current) {
-      const topSchool = rankings[0];
-      fetchedBestMealId.current = topSchool.id;
+    if (bestMealSchool && bestMealSchool.id !== fetchedBestMealId.current) {
+      fetchedBestMealId.current = bestMealSchool.id;
       setIsBestMealLoading(true);
-      getSchoolMeal(topSchool.atptCode || "", topSchool.id)
+      getSchoolMeal(bestMealSchool.atptCode || "", bestMealSchool.id)
         .then(res => setBestMealInfo(res))
         .catch(() => setBestMealInfo("식단 정보를 불러올 수 없습니다."))
         .finally(() => setIsBestMealLoading(false));
     }
-  }, [rankings]);
+  }, [bestMealSchool]);
 
   const globalTotalClicks = useMemo(() => rankings.reduce((acc: number, s: any) => acc + (s.score || 0), 0), [rankings]);
   const currentSchoolServerData = useMemo(() => selectedSchool ? rankings.find((r: any) => r.id === selectedSchool.SD_SCHUL_CODE) : null, [rankings, selectedSchool]);
@@ -191,7 +198,7 @@ export function SchoolClicker() {
     setIsClickModalOpen(true);
   };
 
-  const handleButtonClick = () => {
+  const handleButtonClick = (type: "normal" | "daebak" = "normal") => {
     if (!selectedSchool || !db || isCoolingDown) return;
 
     const now = Date.now();
@@ -216,16 +223,23 @@ export function SchoolClicker() {
       });
 
       const schoolRef = doc(db, "schools", selectedSchool.SD_SCHUL_CODE);
-      setDoc(schoolRef, {
+      const updateData: any = {
         id: selectedSchool.SD_SCHUL_CODE,
         name: selectedSchool.SCHUL_NM,
         cityProvinceName: selectedSchool.ATPT_OFCDC_SC_NM,
         atptCode: selectedSchool.ATPT_OFCDC_SC_CODE,
         schoolKind: selectedSchool.SCHUL_KND_SC_NM,
         address: selectedSchool.ORG_RDNMA,
-        score: increment(1),
         updatedAt: serverTimestamp()
-      }, { merge: true }).catch(() => {});
+      };
+
+      if (type === "normal") {
+        updateData.score = increment(1);
+      } else {
+        updateData.daebakScore = increment(1);
+      }
+
+      setDoc(schoolRef, updateData, { merge: true }).catch(() => {});
     };
 
     if (window.grecaptcha && typeof window.grecaptcha.ready === 'function') {
@@ -328,24 +342,24 @@ export function SchoolClicker() {
           </Button>
         </section>
 
-        {/* 오늘의 베스트 급식 학교 섹션 */}
-        {rankings.length > 0 && (
-          <Card className="border-none shadow-lg bg-gradient-to-br from-primary/10 via-background to-background rounded-3xl overflow-hidden border-2 border-primary/20">
-            <CardHeader className="py-4 px-6 border-b border-primary/10 bg-primary/5 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-black flex items-center gap-2 text-primary headline">
-                <Star className="h-4 w-4 fill-primary" /> 오늘의 베스트 급식 학교
+        {/* 오늘의 베스트 급식 학교 섹션 (daebakScore 기준) */}
+        {bestMealSchool && (
+          <Card className="border-none shadow-lg bg-gradient-to-br from-amber-100/50 via-background to-background dark:from-amber-900/20 rounded-3xl overflow-hidden border-2 border-amber-200 dark:border-amber-800">
+            <CardHeader className="py-4 px-6 border-b border-amber-100 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-black flex items-center gap-2 text-amber-600 dark:text-amber-400 headline">
+                <Star className="h-4 w-4 fill-amber-500" /> 오늘의 베스트 급식 학교
               </CardTitle>
-              <div className="px-2 py-0.5 bg-primary text-primary-foreground text-[10px] font-black rounded-full uppercase tracking-tighter">RANK #1</div>
+              <div className="px-2 py-0.5 bg-amber-500 text-white text-[10px] font-black rounded-full uppercase tracking-tighter">DAEBAK #1</div>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               <div className="flex flex-col items-center text-center space-y-1">
-                <h2 className="text-xl font-black headline text-foreground">{rankings[0].name}</h2>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{rankings[0].cityProvinceName} • {rankings[0].score.toLocaleString()} CLICKS</p>
+                <h2 className="text-xl font-black headline text-foreground">{bestMealSchool.name}</h2>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{bestMealSchool.cityProvinceName} • {bestMealSchool.daebakScore?.toLocaleString() || 0} DAEBAK CLICKS</p>
               </div>
-              <div className="p-5 bg-card border border-primary/10 rounded-2xl shadow-inner min-h-[100px] flex flex-col justify-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-2 opacity-5"><UtensilsCrossed className="h-12 w-12" /></div>
+              <div className="p-5 bg-card border border-amber-100 dark:border-amber-800 rounded-2xl shadow-inner min-h-[100px] flex flex-col justify-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 opacity-5"><UtensilsCrossed className="h-12 w-12 text-amber-500" /></div>
                 {isBestMealLoading ? (
-                  <div className="flex justify-center py-4"><Loader2 className="animate-spin h-6 w-6 text-primary/50" /></div>
+                  <div className="flex justify-center py-4"><Loader2 className="animate-spin h-6 w-6 text-amber-500/50" /></div>
                 ) : (
                   <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center relative z-10">
                     {bestMealInfo || "급식 정보를 불러올 수 없습니다."}
@@ -354,20 +368,20 @@ export function SchoolClicker() {
               </div>
               <Button 
                 variant="ghost" 
-                className="w-full text-primary font-black text-xs hover:bg-primary/5 rounded-xl h-10"
+                className="w-full text-amber-600 dark:text-amber-400 font-black text-xs hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl h-10"
                 onClick={() => selectSchool({
-                  SD_SCHUL_CODE: rankings[0].id,
-                  SCHUL_NM: rankings[0].name,
-                  ATPT_OFCDC_SC_NM: rankings[0].cityProvinceName,
-                  SCHUL_KND_SC_NM: rankings[0].schoolKind,
-                  ATPT_OFCDC_SC_CODE: rankings[0].atptCode || "",
-                  ORG_RDNMA: rankings[0].address || "",
+                  SD_SCHUL_CODE: bestMealSchool.id,
+                  SCHUL_NM: bestMealSchool.name,
+                  ATPT_OFCDC_SC_NM: bestMealSchool.cityProvinceName,
+                  SCHUL_KND_SC_NM: bestMealSchool.schoolKind,
+                  ATPT_OFCDC_SC_CODE: bestMealSchool.atptCode || "",
+                  ORG_RDNMA: bestMealSchool.address || "",
                   ORG_TELNO: "",
                   HMPG_ADRES: "",
                   FOND_YMD: ""
                 })}
               >
-                1위 학교에 도전하기
+                도전하러 가기
               </Button>
             </CardContent>
           </Card>
@@ -516,20 +530,30 @@ export function SchoolClicker() {
                 </div>
               </div>
 
-              <div className="px-8 py-4 text-center space-y-6">
-                <div className="space-y-1">
+              <div className="px-8 py-4 text-center space-y-4">
+                <div className="flex flex-col gap-2">
                   <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">총 누적 점수</div>
-                  <div className="text-5xl font-black text-primary tabular-nums tracking-tighter">
+                  <div className="text-4xl font-black text-primary tabular-nums tracking-tighter">
                     {(currentSchoolServerData?.score || 0).toLocaleString()}
                   </div>
                 </div>
 
-                <Button
-                  onClick={handleButtonClick}
-                  className="w-full h-24 text-4xl font-black rounded-[2rem] shadow-xl transition-all active:scale-[0.96] bg-primary text-primary-foreground headline"
-                >
-                  CLICK!
-                </Button>
+                <div className="grid grid-cols-4 gap-2">
+                  <Button
+                    onClick={() => handleButtonClick("normal")}
+                    className="col-span-3 h-24 text-4xl font-black rounded-[2rem] shadow-xl transition-all active:scale-[0.96] bg-primary text-primary-foreground headline"
+                  >
+                    CLICK!
+                  </Button>
+                  <Button
+                    onClick={() => handleButtonClick("daebak")}
+                    className="col-span-1 h-24 text-lg font-black rounded-[2rem] shadow-lg transition-all active:scale-[0.96] bg-amber-500 hover:bg-amber-600 text-white flex flex-col items-center justify-center gap-1 headline"
+                    title="급식 베스트 학교를 위해 대박 버튼을 누르세요!"
+                  >
+                    <Sparkles className="h-5 w-5" />
+                    대박!
+                  </Button>
+                </div>
 
                 <div className="space-y-4">
                   <div className="text-left space-y-2">
@@ -620,7 +644,7 @@ export function SchoolClicker() {
                 try {
                   const snap = await getDocs(collection(db!, "schools"));
                   const batch = writeBatch(db!);
-                  snap.forEach(d => batch.update(d.ref, { score: 0 }));
+                  snap.forEach(d => batch.update(d.ref, { score: 0, daebakScore: 0 }));
                   await batch.commit();
                   toast({ title: "초기화 완료", description: "모든 점수가 0으로 설정되었습니다." });
                 } catch (e) {
@@ -646,9 +670,9 @@ export function SchoolClicker() {
                 <div key={school.id} className="flex items-center justify-between p-4 px-6">
                   <div className="flex flex-col">
                     <span className="text-sm font-bold">{school.name}</span>
-                    <span className="text-[10px] text-muted-foreground tabular-nums">{school.score.toLocaleString()} clicks</span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums">{school.score.toLocaleString()} clicks / {school.daebakScore?.toLocaleString() || 0} daebak</span>
                   </div>
-                  <Button size="sm" variant="outline" className="h-8 text-destructive font-bold" onClick={() => setDoc(doc(db!, "schools", school.id), { score: 0 }, { merge: true })}>리셋</Button>
+                  <Button size="sm" variant="outline" className="h-8 text-destructive font-bold" onClick={() => setDoc(doc(db!, "schools", school.id), { score: 0, daebakScore: 0 }, { merge: true })}>리셋</Button>
                 </div>
               ))}
             </div>
