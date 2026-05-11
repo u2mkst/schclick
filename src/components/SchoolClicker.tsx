@@ -378,34 +378,34 @@ export function SchoolClicker() {
         </section>
 
         {bestMealSchool && (
-          <Card className="border-none shadow-xl bg-gradient-to-br from-amber-50 to-white dark:from-zinc-900/50 dark:to-zinc-900/30 rounded-[2.5rem] overflow-hidden border-2 border-amber-200/50 dark:border-amber-900/30 transition-all hover:shadow-2xl">
-            <CardHeader className="py-5 px-8 border-b border-amber-100/50 dark:border-amber-900/20 bg-amber-100/20 dark:bg-amber-900/10 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-black flex items-center gap-2 text-amber-600 dark:text-amber-400 headline">
-                <Star className="h-4 w-4 fill-amber-500" /> 오늘의 대박 급식
+          <Card className="border-none shadow-lg bg-gradient-to-br from-amber-50 to-white dark:from-zinc-900/50 dark:to-zinc-900/30 rounded-3xl overflow-hidden border-2 border-amber-200/30 dark:border-amber-900/20 transition-all hover:shadow-xl">
+            <CardHeader className="py-3 px-6 border-b border-amber-100/30 dark:border-amber-900/10 bg-amber-100/10 dark:bg-amber-900/10 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-black flex items-center gap-2 text-amber-600 dark:text-amber-400 headline">
+                <Star className="h-3.5 w-3.5 fill-amber-500" /> 오늘의 대박 급식
               </CardTitle>
-              <div className="px-3 py-1 bg-amber-500 text-white text-[10px] font-black rounded-full uppercase tracking-tighter shadow-sm animate-pulse">#1 DAEBAK</div>
+              <div className="px-2.5 py-0.5 bg-amber-500 text-white text-[9px] font-black rounded-full uppercase tracking-tighter shadow-sm animate-pulse">#1 DAEBAK</div>
             </CardHeader>
-            <CardContent className="p-8 space-y-5">
-              <div className="flex flex-col items-center text-center space-y-2">
-                <h2 className="text-2xl font-black headline text-foreground tracking-tighter">{bestMealSchool.name}</h2>
+            <CardContent className="p-5 space-y-3">
+              <div className="flex flex-col items-center text-center space-y-1">
+                <h2 className="text-lg font-black headline text-foreground tracking-tighter">{bestMealSchool.name}</h2>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold px-2 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded-lg">{bestMealSchool.cityProvinceName}</span>
-                  <span className="text-[11px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest">{bestMealSchool.daebakScore?.toLocaleString() || 0} DAEBAK</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg">{bestMealSchool.cityProvinceName}</span>
+                  <span className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest">{bestMealSchool.daebakScore?.toLocaleString() || 0} DAEBAK</span>
                 </div>
               </div>
-              <div className="p-6 bg-white dark:bg-zinc-800/50 border border-amber-100/50 dark:border-amber-900/20 rounded-3xl shadow-inner min-h-[120px] flex flex-col justify-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><UtensilsCrossed className="h-16 w-16 text-amber-500" /></div>
+              <div className="p-4 bg-white dark:bg-zinc-800/50 border border-amber-100/30 dark:border-amber-900/10 rounded-2xl shadow-inner min-h-[80px] flex flex-col justify-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-3 opacity-5 pointer-events-none"><UtensilsCrossed className="h-10 w-10 text-amber-500" /></div>
                 {isBestMealLoading ? (
-                  <div className="flex justify-center py-4"><Loader2 className="animate-spin h-6 w-6 text-amber-500/50" /></div>
+                  <div className="flex justify-center py-2"><Loader2 className="animate-spin h-5 w-5 text-amber-500/50" /></div>
                 ) : (
-                  <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center relative z-10">
+                  <p className="text-xs font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center relative z-10">
                     {bestMealInfo || "급식 정보를 불러올 수 없습니다."}
                   </p>
                 )}
               </div>
               <Button 
                 variant="ghost" 
-                className="w-full text-amber-600 dark:text-amber-400 font-bold text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-2xl h-12"
+                className="w-full text-amber-600 dark:text-amber-400 font-bold text-[11px] hover:bg-amber-50 dark:hover:bg-amber-900/10 rounded-xl h-9"
                 onClick={() => !isBotBlocked && setIsSearchOpen(true)}
                 disabled={isBotBlocked}
               >
