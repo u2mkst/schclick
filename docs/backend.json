@@ -30,12 +30,24 @@
       },
       "required": ["ip", "bannedAt"]
     },
+    "DeviceBan": {
+      "title": "DeviceBan",
+      "type": "object",
+      "description": "Represents a banned browser/device ID.",
+      "properties": {
+        "deviceId": { "type": "string" },
+        "reason": { "type": "string" },
+        "bannedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["deviceId", "bannedAt"]
+    },
     "Flag": {
       "title": "Flag",
       "type": "object",
-      "description": "Represents a flagged IP address for manual review by admin.",
+      "description": "Represents a flagged activity for manual review by admin.",
       "properties": {
         "ip": { "type": "string" },
+        "deviceId": { "type": "string" },
         "flaggedAt": { "type": "string", "format": "date-time" },
         "clickCount": { "type": "number" },
         "reason": { "type": "string" },
@@ -62,18 +74,25 @@
         "definition": {
           "entityName": "Ban",
           "schema": { "$ref": "#/backend/entities/Ban" },
-          "description": "Stores banned IP addresses. Publicly readable to check ban status."
+          "description": "Stores banned IP addresses."
         }
       },
       {
-        "path": "/flags/{ip}",
+        "path": "/deviceBans/{deviceId}",
+        "definition": {
+          "entityName": "DeviceBan",
+          "schema": { "$ref": "#/backend/entities/DeviceBan" },
+          "description": "Stores banned Device IDs (browser-based UUIDs)."
+        }
+      },
+      {
+        "path": "/flags/{flagId}",
         "definition": {
           "entityName": "Flag",
           "schema": { "$ref": "#/backend/entities/Flag" },
           "description": "Stores flagged suspicious users for admin review."
         }
       }
-    ],
-    "reasoning": "Adding a flags collection allows admins to review suspicious activity before applying a permanent ban."
+    ]
   }
 }
