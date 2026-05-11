@@ -11,7 +11,7 @@ import {
   GraduationCap, Moon, Sun, Settings, 
   MousePointer2, Globe, LogOut, 
   Key, Share2, ShieldAlert, UtensilsCrossed,
-  Star, Sparkles
+  Star
 } from "lucide-react";
 import {
   Dialog,
@@ -558,7 +558,7 @@ export function SchoolClicker() {
                 <div className="w-full">
                   <Button
                     onClick={() => handleButtonClick("normal")}
-                    className="w-full h-20 text-3xl font-black rounded-3xl shadow-lg transition-all active:scale-[0.98] bg-primary text-primary-foreground headline hover:bg-primary/90"
+                    className="w-full h-20 text-3xl font-black rounded-3xl shadow-lg transition-all active:scale-[0.98] bg-primary/90 text-primary-foreground headline hover:bg-primary backdrop-blur-sm"
                   >
                     CLICK!
                   </Button>
