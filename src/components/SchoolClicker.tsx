@@ -11,7 +11,7 @@ import {
   GraduationCap, Moon, Sun, Settings, 
   MousePointer2, Globe, LogOut, 
   Key, Share2, ShieldAlert, UtensilsCrossed,
-  Star, Crown, Ban
+  Star, Crown
 } from "lucide-react";
 import {
   Dialog,
@@ -29,10 +29,13 @@ import {
 } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useFirestore, useCollection, useAuth, useMemoFirebase, useUser } from "@/firebase";
-import { doc, setDoc, getDoc, deleteDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch } from "firebase/firestore";
+import { doc, getDoc, increment, serverTimestamp, collection, query, orderBy, limit, getDocs, writeBatch } from "firebase/firestore";
 import { signInAnonymously, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { setDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase/non-blocking-updates";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 declare global {
   interface Window {
@@ -96,7 +99,14 @@ export function SchoolClicker() {
         setClientIp(ip);
         
         if (db && ip) {
-          const banSnap = await getDoc(doc(db, "bans", ip));
+          const banRef = doc(db, "bans", ip);
+          const banSnap = await getDoc(banRef).catch(async (e) => {
+             errorEmitter.emit('permission-error', new FirestorePermissionError({
+               path: banRef.path,
+               operation: 'get'
+             }));
+             throw e;
+          });
           if (banSnap.exists()) {
             setIsBotBlocked(true);
           }
@@ -245,7 +255,7 @@ export function SchoolClicker() {
   };
 
   const handleButtonClick = (type: "normal" | "daebak" = "normal") => {
-    if (!selectedSchool || !db || isCoolingDown || isBotBlocked) return;
+    if (!selectedSchool || !db || isCoolingDown || isBotBlocked || !user) return;
 
     if (type === "daebak" && hasDaebaked) {
       toast({
@@ -299,7 +309,7 @@ export function SchoolClicker() {
         updateData.daebakScore = increment(1);
       }
 
-      setDoc(schoolRef, updateData, { merge: true }).catch(() => {});
+      setDocumentNonBlocking(schoolRef, updateData, { merge: true });
       
       if (type === "daebak") {
         toast({
@@ -381,12 +391,9 @@ export function SchoolClicker() {
 
   const removeBan = async (ip: string) => {
     if (!db || !isAdmin) return;
-    try {
-      await deleteDoc(doc(db, "bans", ip));
-      toast({ title: "차단 해제", description: `${ip} 주소의 차단이 해제되었습니다.` });
-    } catch (e) {
-      toast({ variant: "destructive", title: "해제 실패" });
-    }
+    const banRef = doc(db, "bans", ip);
+    deleteDocumentNonBlocking(banRef);
+    toast({ title: "차단 해제 진행 중", description: `${ip} 주소의 차단 해제를 요청했습니다.` });
   };
 
   return (
@@ -754,12 +761,14 @@ export function SchoolClicker() {
                 setIsBotBlocked(true);
                 // IP 영구 차단 등록
                 if (db && clientIp) {
-                  setDoc(doc(db, "bans", clientIp), {
+                  const data = {
                     ip: clientIp,
                     bannedAt: serverTimestamp(),
                     reason: "auto_click_detected",
                     uid: user?.uid || "anonymous"
-                  });
+                  };
+                  const banRef = doc(db, "bans", clientIp);
+                  setDocumentNonBlocking(banRef, data, { merge: true });
                 }
                 toast({
                   variant: "destructive",
@@ -849,7 +858,13 @@ export function SchoolClicker() {
                   const snap = await getDocs(collection(db!, "schools"));
                   const batch = writeBatch(db!);
                   snap.forEach(d => batch.update(d.ref, { score: 0, daebakScore: 0 }));
-                  await batch.commit();
+                  await batch.commit().catch(async (e) => {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({
+                      path: 'schools',
+                      operation: 'write'
+                    }));
+                    throw e;
+                  });
                   toast({ title: "초기화 완료", description: "모든 점수가 0으로 설정되었습니다." });
                 } catch (e) {
                   toast({ variant: "destructive", title: "초기화 실패" });
@@ -885,8 +900,8 @@ export function SchoolClicker() {
                         <span className="text-[10px] text-muted-foreground tabular-nums">{school.score.toLocaleString()} clicks / {school.daebakScore?.toLocaleString() || 0} daebak</span>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-8 text-[10px]" onClick={() => setDoc(doc(db!, "schools", school.id), { daebakScore: 0 }, { merge: true })}>대박 리셋</Button>
-                        <Button size="sm" variant="outline" className="h-8 text-destructive font-bold text-[10px]" onClick={() => setDoc(doc(db!, "schools", school.id), { score: 0 }, { merge: true })}>점수 리셋</Button>
+                        <Button size="sm" variant="outline" className="h-8 text-[10px]" onClick={() => setDocumentNonBlocking(doc(db!, "schools", school.id), { daebakScore: 0 }, { merge: true })}>대박 리셋</Button>
+                        <Button size="sm" variant="outline" className="h-8 text-destructive font-bold text-[10px]" onClick={() => setDocumentNonBlocking(doc(db!, "schools", school.id), { score: 0 }, { merge: true })}>점수 리셋</Button>
                       </div>
                     </div>
                   ))}
