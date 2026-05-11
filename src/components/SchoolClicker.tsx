@@ -152,9 +152,8 @@ export function SchoolClicker() {
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const rankings = useMemo(() => rankingsData || [], [rankingsData]);
 
-  // 1위 학교와 나머지 학교 분리
+  // 1위 학교 정보
   const rank1School = useMemo(() => rankings[0] || null, [rankings]);
-  const otherRankings = useMemo(() => rankings.slice(1), [rankings]);
 
   const bestMealQuery = useMemoFirebase(() => {
     if (!db) return null;
@@ -462,7 +461,7 @@ export function SchoolClicker() {
               {rankingsLoading ? (
                 <div className="flex justify-center p-12"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>
               ) : rankings.length > 0 ? (
-                otherRankings.map((school: any, idx: number) => (
+                rankings.map((school: any, idx: number) => (
                   <div 
                     key={school.id} 
                     onClick={() => !isBotBlocked && selectSchool({
@@ -481,9 +480,9 @@ export function SchoolClicker() {
                     <div className="flex items-center gap-4">
                       <span className={cn(
                         "w-6 text-center text-sm font-black tabular-nums",
-                        idx === 0 ? "text-slate-400" : idx === 1 ? "text-amber-600" : "text-muted-foreground/40"
+                        idx === 0 ? "text-primary" : idx === 1 ? "text-slate-400" : idx === 2 ? "text-amber-600" : "text-muted-foreground/40"
                       )}>
-                        {idx + 2}
+                        {idx + 1}
                       </span>
                       <div className="flex flex-col">
                         <div className="flex items-center gap-1.5">
