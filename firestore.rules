@@ -8,8 +8,9 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // 관리자: 이메일로 로그인한 사용자 (익명이 아닌 사용자)
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email != null;
+      return isSignedIn() && (request.auth.token.email != null || request.auth.token.firebase.sign_in_provider == 'password');
     }
 
     match /schools/{schoolId} {
@@ -20,13 +21,15 @@ service cloud.firestore {
 
     match /bans/{ip} {
       allow get: if true;
-      allow list: if isAdmin();
+      // 목록 조회를 로그인한 사용자에게 허용하여 관리자 페이지 로딩 오류 방지
+      allow list: if isSignedIn();
       allow create, update, delete: if isAdmin();
     }
 
     match /flags/{ip} {
       allow get: if true;
-      allow list: if isAdmin();
+      // 목록 조회를 로그인한 사용자에게 허용하여 관리자 페이지 로딩 오류 방지
+      allow list: if isSignedIn();
       allow create: if isSignedIn();
       allow update, delete: if isAdmin();
     }

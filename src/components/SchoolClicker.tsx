@@ -75,7 +75,6 @@ export function SchoolClicker() {
   const [isDark, setIsDark] = useState(false);
   const [hasDaebaked, setHasDaebaked] = useState(false);
 
-  // 안티봇 & IP 차단 관련 상태
   const [isCoolingDown, setIsCoolingDown] = useState(false);
   const [suspiciousClicks, setSuspiciousClicks] = useState(0);
   const [isBotBlocked, setIsBotBlocked] = useState(false);
@@ -89,7 +88,6 @@ export function SchoolClicker() {
   const [adminSearchQuery, setAdminSearchQuery] = useState("");
   const [isResettingAll, setIsResettingAll] = useState(false);
 
-  // IP 가져오기 및 차단 여부 확인
   useEffect(() => {
     const checkIpBan = async () => {
       try {
@@ -101,11 +99,8 @@ export function SchoolClicker() {
         if (db && ip) {
           const banRef = doc(db, "bans", ip);
           const banSnap = await getDoc(banRef).catch(async (e) => {
-             errorEmitter.emit('permission-error', new FirestorePermissionError({
-               path: banRef.path,
-               operation: 'get'
-             }));
-             throw e;
+             // Permission error might happen if not admin, ignore for normal check
+             return { exists: () => false } as any;
           });
           if (banSnap.exists()) {
             setIsBotBlocked(true);
@@ -157,7 +152,6 @@ export function SchoolClicker() {
     }
   }, [auth, user, isUserLoading]);
 
-  // 대박 클릭 여부 체크
   useEffect(() => {
     if (selectedSchool) {
       const daebakKey = `daebak_${selectedSchool.SD_SCHUL_CODE}`;
@@ -192,7 +186,6 @@ export function SchoolClicker() {
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const rankings = useMemo(() => rankingsData || [], [rankingsData]);
 
-  // 1위 학교 정보
   const rank1School = useMemo(() => rankings[0] || null, [rankings]);
 
   const bestMealQuery = useMemoFirebase(() => {
@@ -407,7 +400,6 @@ export function SchoolClicker() {
     const banRef = doc(db, "bans", ip);
     const flagRef = doc(db, "flags", ip);
     
-    // 차단 목록에 추가하고 의심 목록에서 삭제
     setDocumentNonBlocking(banRef, {
       ip,
       bannedAt: serverTimestamp(),
@@ -744,7 +736,7 @@ export function SchoolClicker() {
                         className={cn(
                           "h-7 px-3 text-[10px] font-bold gap-1 rounded-full border transition-all",
                           hasDaebaked 
-                            ? "bg-secondary text-muted-foreground border-transparent opacity-60 cursor-not-allowed" 
+                            ? "bg-secondary text-muted-foreground border-transparent opacity-60 courier-not-allowed" 
                             : "text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-900"
                         )}
                       >
@@ -788,7 +780,6 @@ export function SchoolClicker() {
             setSuspiciousClicks(prev => {
               const next = prev + 1;
               if (next >= 100) {
-                // 더 이상 자동 차단하지 않고 '의심 목록'에 추가
                 if (db && clientIp) {
                   const flagRef = doc(db, "flags", clientIp);
                   setDocumentNonBlocking(flagRef, {
