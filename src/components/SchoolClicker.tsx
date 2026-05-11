@@ -458,7 +458,7 @@ export function SchoolClicker() {
         {/* 1위 학교 웅장하게 표시 */}
         {!rankingsLoading && rank1School && (
           <Card 
-            className="border-none shadow-2xl bg-primary text-primary-foreground rounded-[2.5rem] overflow-hidden group cursor-pointer transition-transform hover:scale-[1.01]"
+            className="border-none shadow-2xl bg-primary text-white rounded-[2.5rem] overflow-hidden group cursor-pointer transition-transform hover:scale-[1.01]"
             onClick={() => !isBotBlocked && selectSchool({
               SD_SCHUL_CODE: rank1School.id,
               SCHUL_NM: rank1School.name,
@@ -473,18 +473,18 @@ export function SchoolClicker() {
           >
             <div className="p-8 space-y-4 relative">
               <div className="absolute top-6 right-8 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Crown className="h-24 w-24" />
+                <Crown className="h-24 w-24 text-white" />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-tighter">Real-time #1</span>
-                  <span className="text-[10px] font-bold opacity-80">{rank1School.cityProvinceName}</span>
+                  <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-tighter text-white">Real-time #1</span>
+                  <span className="text-[10px] font-bold text-white/80">{rank1School.cityProvinceName}</span>
                 </div>
-                <h2 className="text-4xl font-black headline tracking-tighter leading-tight">{rank1School.name}</h2>
+                <h2 className="text-4xl font-black headline tracking-tighter leading-tight text-white">{rank1School.name}</h2>
               </div>
               <div className="pt-4 flex flex-col items-start gap-1">
-                <span className="text-[10px] font-bold opacity-70 uppercase tracking-widest">누적 클릭 스코어</span>
-                <span className="text-5xl font-black tabular-nums tracking-tighter">{(rank1School.score || 0).toLocaleString()}</span>
+                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">누적 클릭 스코어</span>
+                <span className="text-5xl font-black tabular-nums tracking-tighter text-white">{(rank1School.score || 0).toLocaleString()}</span>
               </div>
             </div>
           </Card>
