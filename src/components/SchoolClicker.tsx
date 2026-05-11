@@ -10,7 +10,8 @@ import {
   Search, Trophy, Loader2, 
   GraduationCap, Moon, Sun, Settings, 
   MousePointer2, Globe, LogOut, 
-  Key, Share2, ShieldAlert, UtensilsCrossed
+  Key, Share2, ShieldAlert, UtensilsCrossed,
+  Star
 } from "lucide-react";
 import {
   Dialog,
@@ -47,6 +48,11 @@ export function SchoolClicker() {
   const [mealInfo, setMealInfo] = useState<string>("불러오는 중...");
   const [isMealLoading, setIsMealLoading] = useState(false);
   
+  // 오늘의 베스트 급식 관련 상태
+  const [bestMealInfo, setBestMealInfo] = useState<string>("");
+  const [isBestMealLoading, setIsBestMealLoading] = useState(false);
+  const fetchedBestMealId = useRef<string>("");
+
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchResults, setSearchResults] = useState<School[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -137,6 +143,19 @@ export function SchoolClicker() {
   
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const rankings = useMemo(() => rankingsData || [], [rankingsData]);
+
+  // 오늘의 베스트 급식 (1위 학교) 정보 가져오기
+  useEffect(() => {
+    if (rankings.length > 0 && rankings[0].id !== fetchedBestMealId.current) {
+      const topSchool = rankings[0];
+      fetchedBestMealId.current = topSchool.id;
+      setIsBestMealLoading(true);
+      getSchoolMeal(topSchool.atptCode || "", topSchool.id)
+        .then(res => setBestMealInfo(res))
+        .catch(() => setBestMealInfo("식단 정보를 불러올 수 없습니다."))
+        .finally(() => setIsBestMealLoading(false));
+    }
+  }, [rankings]);
 
   const globalTotalClicks = useMemo(() => rankings.reduce((acc: number, s: any) => acc + (s.score || 0), 0), [rankings]);
   const currentSchoolServerData = useMemo(() => selectedSchool ? rankings.find((r: any) => r.id === selectedSchool.SD_SCHUL_CODE) : null, [rankings, selectedSchool]);
@@ -308,6 +327,51 @@ export function SchoolClicker() {
             우리 학교를 검색해보세요
           </Button>
         </section>
+
+        {/* 오늘의 베스트 급식 학교 섹션 */}
+        {rankings.length > 0 && (
+          <Card className="border-none shadow-lg bg-gradient-to-br from-primary/10 via-background to-background rounded-3xl overflow-hidden border-2 border-primary/20">
+            <CardHeader className="py-4 px-6 border-b border-primary/10 bg-primary/5 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-black flex items-center gap-2 text-primary headline">
+                <Star className="h-4 w-4 fill-primary" /> 오늘의 베스트 급식 학교
+              </CardTitle>
+              <div className="px-2 py-0.5 bg-primary text-primary-foreground text-[10px] font-black rounded-full uppercase tracking-tighter">RANK #1</div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex flex-col items-center text-center space-y-1">
+                <h2 className="text-xl font-black headline text-foreground">{rankings[0].name}</h2>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{rankings[0].cityProvinceName} • {rankings[0].score.toLocaleString()} CLICKS</p>
+              </div>
+              <div className="p-5 bg-card border border-primary/10 rounded-2xl shadow-inner min-h-[100px] flex flex-col justify-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 opacity-5"><UtensilsCrossed className="h-12 w-12" /></div>
+                {isBestMealLoading ? (
+                  <div className="flex justify-center py-4"><Loader2 className="animate-spin h-6 w-6 text-primary/50" /></div>
+                ) : (
+                  <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center relative z-10">
+                    {bestMealInfo || "급식 정보를 불러올 수 없습니다."}
+                  </p>
+                )}
+              </div>
+              <Button 
+                variant="ghost" 
+                className="w-full text-primary font-black text-xs hover:bg-primary/5 rounded-xl h-10"
+                onClick={() => selectSchool({
+                  SD_SCHUL_CODE: rankings[0].id,
+                  SCHUL_NM: rankings[0].name,
+                  ATPT_OFCDC_SC_NM: rankings[0].cityProvinceName,
+                  SCHUL_KND_SC_NM: rankings[0].schoolKind,
+                  ATPT_OFCDC_SC_CODE: rankings[0].atptCode || "",
+                  ORG_RDNMA: rankings[0].address || "",
+                  ORG_TELNO: "",
+                  HMPG_ADRES: "",
+                  FOND_YMD: ""
+                })}
+              >
+                1위 학교에 도전하기
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden border">
           <CardHeader className="py-4 px-6 border-b bg-secondary/10">
