@@ -66,7 +66,10 @@ export function SchoolClicker() {
   const [isDark, setIsDark] = useState(false);
   const [hasDaebaked, setHasDaebaked] = useState(false);
 
+  // 안티봇 관련 상태
   const [isCoolingDown, setIsCoolingDown] = useState(false);
+  const [suspiciousClicks, setSuspiciousClicks] = useState(0);
+  const [isBotBlocked, setIsBotBlocked] = useState(false);
   const lastClickTimeRef = useRef<number>(0);
   const clickCountInSecondRef = useRef<number>(0);
 
@@ -203,7 +206,7 @@ export function SchoolClicker() {
   };
 
   const handleButtonClick = (type: "normal" | "daebak" = "normal") => {
-    if (!selectedSchool || !db || isCoolingDown) return;
+    if (!selectedSchool || !db || isCoolingDown || isBotBlocked) return;
 
     if (type === "daebak" && hasDaebaked) {
       toast({
@@ -284,6 +287,7 @@ export function SchoolClicker() {
   const handleAntiBotConfirm = () => {
     setIsAntiBotOpen(false);
     setIsCoolingDown(false);
+    setSuspiciousClicks(0); // 의심 클릭 초기화
     clickCountInSecondRef.current = 0;
     lastClickTimeRef.current = Date.now();
     toast({
@@ -615,25 +619,65 @@ export function SchoolClicker() {
 
       {/* Anti-Bot Modal */}
       <Dialog open={isAntiBotOpen} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl bg-card p-8 text-center">
-          <DialogHeader>
-            <div className="mx-auto p-4 bg-primary/10 rounded-full w-fit mb-4">
-              <ShieldAlert className="h-10 w-10 text-primary animate-pulse" />
+        <DialogContent 
+          className="sm:max-w-[400px] rounded-3xl border-none shadow-2xl bg-card p-8 text-center"
+          onClick={() => {
+            if (isBotBlocked) return;
+            setSuspiciousClicks(prev => {
+              const next = prev + 1;
+              if (next >= 100) {
+                setIsBotBlocked(true);
+                toast({
+                  variant: "destructive",
+                  title: "비정상 활동 감지",
+                  description: "서비스 이용이 제한되었습니다.",
+                });
+              }
+              return next;
+            });
+          }}
+        >
+          {isBotBlocked ? (
+            <div className="space-y-6">
+              <div className="mx-auto p-4 bg-destructive/10 rounded-full w-fit">
+                <ShieldAlert className="h-16 w-16 text-destructive" />
+              </div>
+              <DialogTitle className="text-3xl font-black text-destructive headline">접근 제한됨</DialogTitle>
+              <DialogDescription className="text-base font-bold text-foreground pt-2">
+                지나친 자동 클릭 시도가 감지되어 서비스 이용이 일시적으로 제한되었습니다. <br /><br />
+                <span className="text-destructive">브라우저를 새로고침 해주세요.</span>
+              </DialogDescription>
             </div>
-            <DialogTitle className="text-2xl font-black tracking-tight headline">잠시 대기!</DialogTitle>
-            <DialogDescription className="text-base font-bold text-foreground/80 pt-2">
-              비정상적으로 빠른 클릭이 감지되었습니다.<br />
-              혹시 <span className="text-primary underline underline-offset-4">로봇이 아닙니까?</span>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="mt-8">
-            <Button 
-              onClick={handleAntiBotConfirm} 
-              className="w-full h-14 rounded-2xl text-lg font-black headline"
-            >
-              로봇이 아닙니다
-            </Button>
-          </DialogFooter>
+          ) : (
+            <>
+              <DialogHeader>
+                <div className="mx-auto p-4 bg-primary/10 rounded-full w-fit mb-4">
+                  <ShieldAlert className="h-10 w-10 text-primary animate-pulse" />
+                </div>
+                <DialogTitle className="text-2xl font-black tracking-tight headline">잠시 대기!</DialogTitle>
+                <DialogDescription className="text-base font-bold text-foreground/80 pt-2">
+                  비정상적으로 빠른 클릭이 감지되었습니다.<br />
+                  혹시 <span className="text-primary underline underline-offset-4">로봇이 아닙니까?</span>
+                  {suspiciousClicks > 0 && (
+                    <div className="mt-4 p-2 bg-destructive/5 rounded-lg text-[10px] text-destructive font-black animate-bounce">
+                      경고: 의심스러운 클릭 지속 감지 ({suspiciousClicks}/100)
+                    </div>
+                  )}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter className="mt-8">
+                <Button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleAntiBotConfirm();
+                  }} 
+                  className="w-full h-14 rounded-2xl text-lg font-black headline"
+                >
+                  로봇이 아닙니다
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
