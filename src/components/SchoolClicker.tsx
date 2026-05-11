@@ -368,8 +368,8 @@ export function SchoolClicker() {
         </section>
 
         {bestMealSchool && (
-          <Card className="border-none shadow-xl bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-card rounded-[2.5rem] overflow-hidden border-2 border-amber-200/50 dark:border-amber-800/30 transition-all hover:shadow-2xl">
-            <CardHeader className="py-5 px-8 border-b border-amber-100/50 dark:border-amber-800/20 bg-amber-100/20 dark:bg-amber-900/10 flex flex-row items-center justify-between">
+          <Card className="border-none shadow-xl bg-gradient-to-br from-amber-50 to-white dark:from-zinc-900/50 dark:to-zinc-900/30 rounded-[2.5rem] overflow-hidden border-2 border-amber-200/50 dark:border-amber-900/30 transition-all hover:shadow-2xl">
+            <CardHeader className="py-5 px-8 border-b border-amber-100/50 dark:border-amber-900/20 bg-amber-100/20 dark:bg-amber-900/10 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-black flex items-center gap-2 text-amber-600 dark:text-amber-400 headline">
                 <Star className="h-4 w-4 fill-amber-500" /> 오늘의 대박 급식
               </CardTitle>
@@ -383,7 +383,7 @@ export function SchoolClicker() {
                   <span className="text-[11px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest">{bestMealSchool.daebakScore?.toLocaleString() || 0} DAEBAK</span>
                 </div>
               </div>
-              <div className="p-6 bg-white dark:bg-zinc-900/50 border border-amber-100/50 dark:border-amber-800/20 rounded-3xl shadow-inner min-h-[120px] flex flex-col justify-center relative overflow-hidden">
+              <div className="p-6 bg-white dark:bg-zinc-800/50 border border-amber-100/50 dark:border-amber-900/20 rounded-3xl shadow-inner min-h-[120px] flex flex-col justify-center relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><UtensilsCrossed className="h-16 w-16 text-amber-500" /></div>
                 {isBestMealLoading ? (
                   <div className="flex justify-center py-4"><Loader2 className="animate-spin h-6 w-6 text-amber-500/50" /></div>
@@ -395,18 +395,8 @@ export function SchoolClicker() {
               </div>
               <Button 
                 variant="ghost" 
-                className="w-full text-amber-600 dark:text-amber-400 font-black text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-2xl h-12"
-                onClick={() => selectSchool({
-                  SD_SCHUL_CODE: bestMealSchool.id,
-                  SCHUL_NM: bestMealSchool.name,
-                  ATPT_OFCDC_SC_NM: bestMealSchool.cityProvinceName,
-                  SCHUL_KND_SC_NM: bestMealSchool.schoolKind,
-                  ATPT_OFCDC_SC_CODE: bestMealSchool.atptCode || "",
-                  ORG_RDNMA: bestMealSchool.address || "",
-                  ORG_TELNO: "",
-                  HMPG_ADRES: "",
-                  FOND_YMD: ""
-                })}
+                className="w-full text-amber-600 dark:text-amber-400 font-bold text-sm hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-2xl h-12"
+                onClick={() => setIsSearchOpen(true)}
               >
                 우리 학교도 대박 투표하기
               </Button>
@@ -547,20 +537,20 @@ export function SchoolClicker() {
           {selectedSchool && (
             <div className="flex flex-col max-h-[90vh] overflow-y-auto">
               <div className="p-8 pb-4 text-center space-y-2">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-black uppercase tracking-widest">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-bold uppercase tracking-widest">
                    <GraduationCap className="h-3 w-3" />
                   {currentRank ? `전국 실시간 ${currentRank}위` : '순위 진입 중...'}
                 </div>
-                <DialogTitle className="text-2xl font-black tracking-tighter headline">{selectedSchool.SCHUL_NM}</DialogTitle>
-                <div className="text-muted-foreground text-xs">
+                <DialogTitle className="text-xl font-bold tracking-tight headline">{selectedSchool.SCHUL_NM}</DialogTitle>
+                <div className="text-muted-foreground text-[10px]">
                   {selectedSchool.ATPT_OFCDC_SC_NM} • {selectedSchool.SCHUL_KND_SC_NM}
                 </div>
               </div>
 
               <div className="px-8 py-4 text-center space-y-6">
-                <div className="flex flex-col gap-2">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">총 누적 점수</div>
-                  <div className="text-4xl font-black text-primary tabular-nums tracking-tighter">
+                <div className="flex flex-col gap-1">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">누적 점수</div>
+                  <div className="text-3xl font-black text-primary tabular-nums tracking-tighter">
                     {(currentSchoolServerData?.score || 0).toLocaleString()}
                   </div>
                 </div>
@@ -568,57 +558,54 @@ export function SchoolClicker() {
                 <div className="w-full">
                   <Button
                     onClick={() => handleButtonClick("normal")}
-                    className="w-full h-24 text-4xl font-black rounded-[2.5rem] shadow-xl transition-all active:scale-[0.96] bg-primary text-primary-foreground headline border-b-8 border-primary/50"
+                    className="w-full h-20 text-3xl font-black rounded-3xl shadow-lg transition-all active:scale-[0.98] bg-primary text-primary-foreground headline hover:bg-primary/90"
                   >
                     CLICK!
                   </Button>
                 </div>
 
                 <div className="space-y-4">
-                  <div className="text-left space-y-3">
+                  <div className="text-left space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="text-[11px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5">
-                        <UtensilsCrossed className="h-3.5 w-3.5" /> 오늘의 급식
+                      <div className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center gap-1.5">
+                        <UtensilsCrossed className="h-3 w-3" /> 오늘의 급식
                       </div>
                       <Button 
                         size="sm" 
-                        variant={hasDaebaked ? "secondary" : "ghost"}
+                        variant={hasDaebaked ? "secondary" : "outline"}
                         onClick={() => handleButtonClick("daebak")}
                         disabled={hasDaebaked}
                         className={cn(
-                          "h-8 px-4 text-[11px] font-black gap-1.5 rounded-full border transition-all",
+                          "h-7 px-3 text-[10px] font-bold gap-1 rounded-full border transition-all",
                           hasDaebaked 
                             ? "bg-secondary text-muted-foreground border-transparent opacity-60 cursor-not-allowed" 
-                            : "text-amber-600 border-amber-200 hover:bg-amber-100 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/40"
+                            : "text-amber-600 border-amber-200 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-900"
                         )}
                       >
-                        <Star className={cn("h-3.5 w-3.5", hasDaebaked ? "fill-muted-foreground" : "fill-amber-500 text-amber-500")} /> 
-                        {hasDaebaked ? "대박 참여완료" : "대박!"}
+                        <Star className={cn("h-3 w-3", hasDaebaked ? "fill-muted-foreground" : "fill-amber-500 text-amber-500")} /> 
+                        {hasDaebaked ? "참여완료" : "대박!"}
                       </Button>
                     </div>
-                    <div className="relative p-6 bg-primary/5 dark:bg-primary/10 rounded-3xl border border-primary/10 min-h-[140px] flex flex-col justify-center overflow-hidden">
+                    <div className="relative p-5 bg-primary/5 dark:bg-zinc-800/30 rounded-2xl border border-primary/10 min-h-[120px] flex flex-col justify-center overflow-hidden">
                       {isMealLoading ? (
                         <div className="flex flex-col items-center gap-2">
-                          <Loader2 className="animate-spin h-6 w-6 text-primary/50" />
-                          <span className="text-xs text-muted-foreground font-bold">식단 정보 가져오는 중...</span>
+                          <Loader2 className="animate-spin h-5 w-5 text-primary/50" />
+                          <span className="text-[10px] text-muted-foreground font-bold">로딩 중...</span>
                         </div>
                       ) : (
                         <p className="text-sm font-bold text-foreground/80 leading-relaxed whitespace-pre-line text-center">
                           {mealInfo}
                         </p>
                       )}
-                      <div className="absolute -bottom-2 -right-2 opacity-5 pointer-events-none">
-                        <UtensilsCrossed className="h-16 w-16 text-primary" />
-                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex gap-2 pb-6">
-                  <Button variant="outline" className="flex-1 rounded-2xl h-12 font-bold border-2" onClick={handleKakaoShare}>
+                  <Button variant="outline" className="flex-1 rounded-xl h-11 font-bold border" onClick={handleKakaoShare}>
                     <Share2 className="h-4 w-4 mr-2" /> 카톡 공유
                   </Button>
-                  <Button variant="ghost" className="px-4 rounded-2xl h-12 opacity-40 font-bold" onClick={() => setIsClickModalOpen(false)}>닫기</Button>
+                  <Button variant="ghost" className="px-4 rounded-xl h-11 opacity-40 font-bold" onClick={() => setIsClickModalOpen(false)}>닫기</Button>
                 </div>
               </div>
             </div>
