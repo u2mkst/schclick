@@ -12,7 +12,7 @@ import {
   MousePointer2, Globe, LogOut, 
   Key, Share2, ShieldAlert, UtensilsCrossed,
   Star, Crown, AlertTriangle, CheckCircle2,
-  Smartphone
+  Smartphone, Trash2, RefreshCcw
 } from "lucide-react";
 import {
   Dialog,
@@ -200,7 +200,7 @@ export function SchoolClicker() {
 
   const rankingQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, "schools"), orderBy("score", "desc"), limit(10));
+    return query(collection(db, "schools"), orderBy("score", "desc"), limit(100));
   }, [db]);
   const { data: rankingsData, isLoading: rankingsLoading } = useCollection(rankingQuery);
   const rankings = useMemo(() => rankingsData || [], [rankingsData]);
@@ -394,19 +394,16 @@ export function SchoolClicker() {
     
     const batch = writeBatch(db);
     
-    // 1. Ban IP
     if (flag.ip) {
       const banRef = doc(db, "bans", flag.ip);
       batch.set(banRef, { ip: flag.ip, bannedAt: serverTimestamp(), reason: flag.reason, uid: "admin" });
     }
     
-    // 2. Ban Device
     if (flag.deviceId) {
       const deviceBanRef = doc(db, "deviceBans", flag.deviceId);
       batch.set(deviceBanRef, { deviceId: flag.deviceId, bannedAt: serverTimestamp(), reason: flag.reason });
     }
 
-    // 3. Remove Flag
     batch.delete(doc(db, "flags", flag.id));
 
     await batch.commit();
@@ -417,6 +414,39 @@ export function SchoolClicker() {
     if (!db || !isAdmin) return;
     deleteDocumentNonBlocking(doc(db, "flags", flagId));
     toast({ title: "의심 해제 완료" });
+  };
+
+  const resetAllSchools = async () => {
+    if (!db || !isAdmin) return;
+    if (!confirm("정말 모든 학교의 점수를 리셋하시겠습니까?\n이 작업은 되돌릴 수 없습니다.")) return;
+
+    setIsResettingAll(true);
+    try {
+      const q = query(collection(db, "schools"));
+      const snapshot = await getDocs(q);
+      const batchSize = 500;
+      let count = 0;
+      let batch = writeBatch(db);
+
+      for (const docSnap of snapshot.docs) {
+        batch.update(docSnap.ref, { score: 0, daebakScore: 0 });
+        count++;
+        if (count >= batchSize) {
+          await batch.commit();
+          batch = writeBatch(db);
+          count = 0;
+        }
+      }
+      if (count > 0) {
+        await batch.commit();
+      }
+      toast({ title: "리셋 완료", description: "모든 학교의 점수가 초기화되었습니다." });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "리셋 실패", description: "오류가 발생했습니다." });
+    } finally {
+      setIsResettingAll(false);
+    }
   };
 
   return (
@@ -461,31 +491,31 @@ export function SchoolClicker() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 flex gap-4 items-center">
-              <div className="flex-1 space-y-1">
-                <h2 
-                  className="text-lg font-black headline text-foreground tracking-tighter leading-tight cursor-pointer hover:text-primary transition-colors"
-                  onClick={() => selectSchool({
-                    SD_SCHUL_CODE: bestMealSchool.id,
-                    SCHUL_NM: bestMealSchool.name,
-                    ATPT_OFCDC_SC_NM: bestMealSchool.cityProvinceName,
-                    SCHUL_KND_SC_NM: bestMealSchool.schoolKind,
-                    ATPT_OFCDC_SC_CODE: bestMealSchool.atptCode || "",
-                    ORG_RDNMA: bestMealSchool.address || "",
-                    ORG_TELNO: "", HMPG_ADRES: "", FOND_YMD: ""
-                  })}
-                >
+              <div 
+                className="flex-1 space-y-1 cursor-pointer"
+                onClick={() => selectSchool({
+                  SD_SCHUL_CODE: bestMealSchool.id,
+                  SCHUL_NM: bestMealSchool.name,
+                  ATPT_OFCDC_SC_NM: bestMealSchool.cityProvinceName,
+                  SCHUL_KND_SC_NM: bestMealSchool.schoolKind,
+                  ATPT_OFCDC_SC_CODE: bestMealSchool.atptCode || "",
+                  ORG_RDNMA: bestMealSchool.address || "",
+                  ORG_TELNO: "", HMPG_ADRES: "", FOND_YMD: ""
+                })}
+              >
+                <h2 className="text-lg font-black headline text-foreground tracking-tighter leading-tight hover:text-primary transition-colors">
                   {bestMealSchool.name}
                 </h2>
                 <p className="text-[10px] font-bold text-muted-foreground">{bestMealSchool.cityProvinceName}</p>
-                <div className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest">
+                <div className="text-[10px] font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest pt-1">
                   {bestMealSchool.daebakScore?.toLocaleString() || 0} DAEBAK
                 </div>
                 <Button 
                   variant="link" 
-                  className="p-0 h-auto text-primary font-bold text-[10px] hover:no-underline"
-                  onClick={() => !isBlocked && setIsSearchOpen(true)}
+                  className="p-0 h-auto text-primary font-bold text-[10px] hover:no-underline pt-1"
+                  onClick={(e) => { e.stopPropagation(); setIsSearchOpen(true); }}
                 >
-                  투표하기 &rarr;
+                  우리 학교 투표하기 &rarr;
                 </Button>
               </div>
 
@@ -515,7 +545,7 @@ export function SchoolClicker() {
 
         {rankings[0] && (
           <Card 
-            className="border-none shadow-2xl bg-primary text-white rounded-[2.5rem] overflow-hidden group cursor-pointer transition-transform hover:scale-[1.01]"
+            className="border-none shadow-2xl bg-primary rounded-[2.5rem] overflow-hidden group cursor-pointer transition-transform hover:scale-[1.01]"
             onClick={() => !isBlocked && selectSchool({
               SD_SCHUL_CODE: rankings[0].id,
               SCHUL_NM: rankings[0].name,
@@ -547,44 +577,44 @@ export function SchoolClicker() {
         <Card className="border-none shadow-sm bg-card rounded-3xl overflow-hidden border">
           <CardHeader className="py-4 px-6 border-b bg-secondary/10">
             <CardTitle className="text-sm font-bold flex items-center gap-2 headline">
-              <Trophy className="h-4 w-4 text-primary" /> 학교 순위 TOP 10
+              <Trophy className="h-4 w-4 text-primary" /> 학교 순위 TOP 100
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-border/30">
-              {rankingsLoading ? (
-                <div className="flex justify-center p-12"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>
-              ) : rankings.length > 0 ? (
-                rankings.map((school: any, idx: number) => (
-                  <div 
-                    key={school.id} 
-                    onClick={() => !isBlocked && selectSchool({
-                      SD_SCHUL_CODE: school.id,
-                      SCHUL_NM: school.name,
-                      ATPT_OFCDC_SC_NM: school.cityProvinceName,
-                      SCHUL_KND_SC_NM: school.schoolKind,
-                      ATPT_OFCDC_SC_CODE: school.atptCode || "",
-                      ORG_RDNMA: school.address || "",
-                      ORG_TELNO: "", HMPG_ADRES: "", FOND_YMD: ""
-                    })}
-                    className={cn("flex items-center justify-between p-4 px-6 hover:bg-primary/5 transition-colors cursor-pointer group", isBlocked && "cursor-not-allowed")}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className={cn("w-6 text-center text-sm font-black tabular-nums", idx === 0 ? "text-primary" : "text-muted-foreground/40")}>{idx + 1}</span>
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-1.5">
+            <ScrollArea className="h-[400px]">
+              <div className="divide-y divide-border/30">
+                {rankingsLoading ? (
+                  <div className="flex justify-center p-12"><Loader2 className="animate-spin h-6 w-6 text-primary" /></div>
+                ) : rankings.length > 0 ? (
+                  rankings.map((school: any, idx: number) => (
+                    <div 
+                      key={school.id} 
+                      onClick={() => !isBlocked && selectSchool({
+                        SD_SCHUL_CODE: school.id,
+                        SCHUL_NM: school.name,
+                        ATPT_OFCDC_SC_NM: school.cityProvinceName,
+                        SCHUL_KND_SC_NM: school.schoolKind,
+                        ATPT_OFCDC_SC_CODE: school.atptCode || "",
+                        ORG_RDNMA: school.address || "",
+                        ORG_TELNO: "", HMPG_ADRES: "", FOND_YMD: ""
+                      })}
+                      className={cn("flex items-center justify-between p-4 px-6 hover:bg-primary/5 transition-colors cursor-pointer group", isBlocked && "cursor-not-allowed")}
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className={cn("w-8 text-center text-sm font-black tabular-nums", idx === 0 ? "text-primary" : "text-muted-foreground/40")}>{idx + 1}</span>
+                        <div className="flex flex-col">
                           <span className="font-bold text-sm group-hover:text-primary transition-colors">{school.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{school.cityProvinceName}</span>
                         </div>
-                        <span className="text-[10px] text-muted-foreground">{school.cityProvinceName}</span>
                       </div>
+                      <div className="font-black text-primary text-base tabular-nums">{(school.score || 0).toLocaleString()}</div>
                     </div>
-                    <div className="font-black text-primary text-base tabular-nums">{(school.score || 0).toLocaleString()}</div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center p-12 text-sm text-muted-foreground">아직 등록된 학교가 없습니다.</div>
-              )}
-            </div>
+                  ))
+                ) : (
+                  <div className="text-center p-12 text-sm text-muted-foreground">아직 등록된 학교가 없습니다.</div>
+                )}
+              </div>
+            </ScrollArea>
           </CardContent>
         </Card>
 
@@ -753,12 +783,35 @@ export function SchoolClicker() {
             </TabsList>
             
             <TabsContent value="schools" className="m-0">
+              <div className="p-4 border-b bg-secondary/5 flex items-center justify-between">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">학교 점수 관리</span>
+                <Button 
+                  size="sm" 
+                  variant="destructive" 
+                  className="h-8 text-[10px] font-bold gap-1.5" 
+                  disabled={isResettingAll}
+                  onClick={resetAllSchools}
+                >
+                  {isResettingAll ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCcw className="h-3 w-3" />}
+                  전체 학교 점수 리셋
+                </Button>
+              </div>
               <ScrollArea className="h-[400px]">
                 <div className="divide-y">
                   {rankings.map((school: any) => (
                     <div key={school.id} className="flex items-center justify-between p-4 px-6">
-                      <span className="text-sm font-bold">{school.name}</span>
-                      <Button size="sm" variant="outline" className="h-8 text-destructive font-bold text-[10px]" onClick={() => setDocumentNonBlocking(doc(db!, "schools", school.id), { score: 0, daebakScore: 0 }, { merge: true })}>리셋</Button>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold">{school.name}</span>
+                        <span className="text-[10px] text-muted-foreground">{school.score?.toLocaleString() || 0} pts</span>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-8 text-destructive font-bold text-[10px]" 
+                        onClick={() => setDocumentNonBlocking(doc(db!, "schools", school.id), { score: 0, daebakScore: 0 }, { merge: true })}
+                      >
+                        리셋
+                      </Button>
                     </div>
                   ))}
                 </div>
